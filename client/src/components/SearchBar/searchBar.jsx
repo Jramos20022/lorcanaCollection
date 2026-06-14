@@ -19,9 +19,15 @@ const SearchBar = ({ onChange }) => {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
+        gap: 1.5,
         width: '100%', 
-        padding: '20px', 
-        backgroundColor: 'background.main' 
+        padding: '18px',
+        mb: 2,
+        background: 'linear-gradient(135deg, rgba(29, 22, 56, 0.92), rgba(8, 11, 23, 0.92))',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        boxShadow: '0 18px 36px rgba(0, 0, 0, 0.28)',
       }}
     >
       <TextField
@@ -30,12 +36,12 @@ const SearchBar = ({ onChange }) => {
         value={query}
         onChange={handleInputChange}
         placeholder="Search..."
-        sx={{ marginRight: '10px' }}
       />
       <Button 
         variant="contained" 
+        color="secondary"
         onClick={handleSearch}
-        sx={{ padding: '10px 20px' }}
+        sx={{ px: 3, whiteSpace: 'nowrap' }}
       >
         Search
       </Button>
@@ -44,4 +50,3 @@ const SearchBar = ({ onChange }) => {
 };
 
 export default SearchBar;
-

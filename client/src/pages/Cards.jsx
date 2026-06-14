@@ -1,12 +1,10 @@
-import { Container, Typography } from '@mui/material';
+import { Container } from '@mui/material';
 import MainCards from '../components/MainCards';
-import Search from '../components/SearchBar';
 
 const Cards = () => {
 
     return (
-      <Container sx={{ display: 'flex', flexGrow: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'background.secondary' }}>
-        <Search />
+      <Container maxWidth="xl" sx={{ display: 'flex', flexGrow: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', py: 4 }}>
         <MainCards />     
       </Container>
     );
