@@ -43,11 +43,11 @@ const Login = (props) => {
   };
 
   return (
-    <Container sx={{ display: 'flex', flexGrow: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'background.secondary' }}>
+    <Container maxWidth={false} sx={{ display: 'flex', flexGrow: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: 'transparent', px: 2, py: 6 }}>
       <Grid container spacing={2} sx={{ display: 'flex', justifyContent: 'center'}}>
-        <Grid item xs={12} lg={10}>
+        <Grid item xs={12} sm={9} md={6} lg={4}>
           <Card>
-            <CardHeader title="Log In" sx={{ backgroundColor: "primary.main", color: "white", textAlign: 'center' }} />
+            <CardHeader title="Log In" sx={{ background: "linear-gradient(135deg, #301067, #6d3bd6)", color: "secondary.light", textAlign: 'center' }} />
             <CardContent>
               {data ? (
                 <Typography variant="body1">
@@ -83,7 +83,7 @@ const Login = (props) => {
                     fullWidth
                     margin="normal"
                   />
-                  <Button variant="contained" type="submit" fullWidth sx={{ mt: 2 }}>
+                  <Button variant="contained" color="secondary" type="submit" fullWidth sx={{ mt: 2 }}>
                     Submit
                   </Button>
                 </form>

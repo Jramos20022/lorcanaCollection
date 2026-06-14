@@ -39,9 +39,19 @@ const client = new ApolloClient({
 function App() {
   return (
     <ApolloProvider client={client}>
-      <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', color: 'text.primary' }}>
         <Header />
-        <Container sx={{ display: 'flex',  flexDirection: 'column', flexGrow: 1 }}>
+        <Container
+          maxWidth={false}
+          disableGutters
+          component="main"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            flexGrow: 1,
+            width: '100%',
+          }}
+        >
           <Outlet />
         </Container>
         <Footer />
@@ -51,7 +61,6 @@ function App() {
 }
 
 export default App;
-
 
 
 

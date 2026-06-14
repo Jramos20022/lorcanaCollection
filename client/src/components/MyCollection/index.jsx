@@ -73,9 +73,9 @@ const MainCards = () => {
   };
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ margin: '10px 0px' }}>
+    <Container sx={{ margin: '10px 0px 10px 0px'}}>
       <SearchBar onChange={handleSearch}/>
-      <Button variant="contained" onClick={clearSearch} sx={{ my: 1.5 }}>
+      <Button variant="contained" onClick={clearSearch} style={{ margin: '10px 0' }}>
         Clear
       </Button>
       <Grid container spacing={3}>
@@ -83,15 +83,10 @@ const MainCards = () => {
           <Grid item xs={12} sm={6} md={4} lg={3} key={card.Card_Num}>
             <Card className='target-card'
               sx={{
-                width: '100%',
-                height: "100%",
-                cursor: 'pointer',
-                overflow: 'hidden',
-                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-6px)',
-                  borderColor: 'secondary.main',
-                  boxShadow: '0 22px 42px rgba(0, 0, 0, 0.48)',
+                width: '100%', height: "100%", cursor: 'pointer',
+                transition: 'transform 0.2s ease-in-out', '&:hover': {
+                  transform: 'scale(1.3)', // Enlarge card on hover
+                  boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
                 },
               }}
               ref={cardRef}
@@ -110,15 +105,15 @@ const MainCards = () => {
           </Grid>
         ))}
       </Grid>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button variant="contained" onClick={handlePreviousPage} disabled={currentPage === 1}>
           Previous
         </Button>
-        <Typography variant="body1" sx={{ color: 'secondary.light', fontWeight: 800 }}> Page {currentPage} </Typography>
+        <Typography variant="body1"> Page {currentPage} </Typography>
         <Button variant="contained" onClick={handleNextPage}>
           Next
         </Button>
-      </Box>
+      </div>
       
       {selectedCard && (
         <Modal
@@ -132,24 +127,22 @@ const MainCards = () => {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: { xs: '92%', md: '680px' },
+            width: '80%',
             height:'auto',
-            bgcolor: 'background.elevated',
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 28px 70px rgba(0, 0, 0, 0.62)',
+            bgcolor: 'background.secondary',
+            boxShadow: 24,
             p: 4,
-            borderRadius: 2,
+            borderRadius: '10px',
             display:'flex',
             flexDirection:'column',
-            alignItems:'center',
+            alignItemsItems:'center',
             justifyContent:'center'
           }}>
             <Button onClick={handleCloseModal} sx={{ position: 'absolute', top: 10, right: 10}}>Close</Button>
-            <Typography id="modal-modal-title" variant="h3" component="h3" sx={{textAlign:'center', color: 'secondary.light'}}>
+            <Typography id="modal-modal-title" variant="h3" component="h3" sx={{textAlign:'center'}}>
               {selectedCard.Name}
             </Typography>
-            <img src={selectedCard.Image} alt={selectedCard.Name} style={{width: 'min(350px, 100%)', borderRadius: '8px', margin:'auto' }} />
+            <img src={selectedCard.Image} alt={selectedCard.Name} style={{width: '350px', borderRadius: '10px', margin:'auto' }} />
             <Typography id="modal-modal-description" sx={{ mt: 2, textAlign:'center'}}>
               <strong>Type:</strong> {selectedCard.Type}<br/>
               <strong>Classifications:</strong> {selectedCard.Classifications}<br/>
@@ -166,5 +159,6 @@ const MainCards = () => {
   );
 };
 
-export default MainCards;
+export default collectionCards;
+
 

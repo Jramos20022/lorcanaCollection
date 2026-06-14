@@ -48,12 +48,12 @@ const Profile = () => {
   };
 
   return (
-    <Container sx={{ flexGrow: 1, backgroundColor: 'background.secondary', paddingTop: '20px' }}>
+    <Container maxWidth="xl" sx={{ flexGrow: 1, paddingTop: '32px', pb: 5 }}>
       {isEditing ? (
         <BuilderCards selectedDeck={selectedDeck} isEditing={isEditing} setIsEditing={setIsEditing} />
       ) : (
         <> 
-          <Typography variant="h3" sx={{ textAlign: 'center', marginBottom: '20px' }}>
+          <Typography variant="h3" sx={{ textAlign: 'center', marginBottom: '28px', color: 'secondary.light' }}>
             {Auth.getProfile().data.username}'s Decks
           </Typography>
   
@@ -62,19 +62,23 @@ const Profile = () => {
               <Grid item xs={12} sm={6} md={4} lg={3} key={deck._id}>
                 <Card
                   sx={{
-                    backgroundColor: 'secondary.main',
+                    background: 'linear-gradient(180deg, rgba(29, 22, 56, 0.98), rgba(8, 11, 23, 0.98))',
+                    border: '1px solid',
+                    borderColor: 'divider',
                     width: '100%',
                     height: '86%',
                     cursor: 'pointer',
-                    transition: 'transform 0.2s ease-in-out',
+                    overflow: 'hidden',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out',
                     '&:hover': {
-                      transform: 'scale(1.1)',
-                      boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+                      transform: 'translateY(-6px)',
+                      borderColor: 'secondary.main',
+                      boxShadow: '0 22px 44px rgba(0, 0, 0, 0.42)',
                     },
                   }}
                 >
-                  <CardContent sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="h5" sx={{ color: 'black',textAlign:'center', width:'100%' }}>
+                  <CardContent sx={{ display: 'flex', justifyContent: 'space-between', backgroundColor: 'rgba(216, 169, 67, 0.10)' }}>
+                    <Typography variant="h5" sx={{ color: 'secondary.light', textAlign:'center', width:'100%' }}>
                       {deck.deckName}
                     </Typography>
                     {/* Button to delete the deck */}
@@ -88,9 +92,9 @@ const Profile = () => {
                     sx={{objectFit:'contain' }}
                   />
                 </Card>
-                <Button variant="contained" sx={{marginTop:'30px'}} onClick={() => editDeck(deck)}>Edit</Button>
+                <Button variant="contained" color="secondary" sx={{marginTop:'20px'}} onClick={() => editDeck(deck)}>Edit</Button>
                     {/* Button to delete the deck */}
-                    <Button variant="contained" sx={{display:'flex', float:'right', marginTop:'30px'}} onClick={() => deleteDeck(deck._id)}>Delete</Button>
+                    <Button variant="contained" sx={{display:'flex', float:'right', marginTop:'20px'}} onClick={() => deleteDeck(deck._id)}>Delete</Button>
               </Grid>
             ))}
           </Grid>
