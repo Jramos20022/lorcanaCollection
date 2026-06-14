@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import '@fontsource/cinzel/700.css';
 import theme from './utils/theme.js';
 
 

@@ -4,6 +4,23 @@ import Auth from "../../utils/auth";
 
 export default function Navbar() {
   const currentPage = useLocation().pathname;
+  const navLinkStyles = (path) => ({
+    color: currentPage === path ? 'secondary.light' : 'text.primary',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    minHeight: 34,
+    px: 1.25,
+    py: 0.5,
+    fontSize: '0.82rem',
+    fontWeight: 700,
+    borderBottom: '1px solid',
+    borderBottomColor: currentPage === path ? 'secondary.main' : 'transparent',
+    '&:hover': {
+      color: 'secondary.light',
+      backgroundColor: 'transparent',
+      borderBottomColor: 'secondary.main',
+    },
+  });
   const logout = (event) => {
     event.preventDefault();
     Auth.logout();
@@ -14,57 +31,73 @@ export default function Navbar() {
       position="sticky"
       elevation={0}
       sx={{
-        background: 'rgba(8, 11, 23, 0.88)',
-        backdropFilter: 'blur(16px)',
+        background: 'linear-gradient(90deg, rgba(13, 13, 31, 0.68), rgba(24, 17, 48, 0.58))',
+        backdropFilter: 'blur(9px)',
         borderBottom: '1px solid',
-        borderColor: 'divider',
+        borderColor: 'rgba(216, 169, 67, 0.10)',
       }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between', gap: 2, py: 1, flexWrap: 'wrap' }}>
+      <Toolbar
+        sx={{
+          width: '100%',
+          maxWidth: 1440,
+          mx: 'auto',
+          minHeight: { xs: 54, sm: 58 },
+          justifyContent: 'space-between',
+          gap: { xs: 1, sm: 2 },
+          px: { xs: 2, sm: 3 },
+          py: { xs: 0.75, sm: 0 },
+          flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        }}
+      >
         <Typography
-          variant="h4"
+          variant="h5"
           color="inherit"
           component={Link}
           to="/"
           sx={{
-            flexGrow: 1,
+            flexShrink: 0,
+            width: 'fit-content',
             minWidth: 'fit-content',
             color: 'secondary.light',
-            fontWeight: 900,
+            fontFamily: 'Cinzel, Georgia, serif',
+            fontWeight: 700,
+            letterSpacing: 0,
+            lineHeight: 1,
             textDecoration: 'none',
-            textShadow: '0 0 22px rgba(216, 169, 67, 0.28)',
+            textShadow: '0 0 18px rgba(216, 169, 67, 0.22)',
             '&:hover': { color: 'secondary.main', textDecoration: 'none' },
           }}
         >
-          Illuminears Quest
+          The Inkcaster
         </Typography>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.25, ml: 'auto' }}>
           <Button color="inherit" component={Link} to="/cards"
-            sx={currentPage === '/cards' ? { color: 'secondary.light', backgroundColor: 'rgba(216, 169, 67, 0.12)' } : { color: 'text.primary' }}>
+            sx={navLinkStyles('/cards')}>
             Cards
           </Button>
           {Auth.loggedIn() ? (
             <>
             <Button color="inherit" component={Link} to="/builder"
-            sx={currentPage === '/builder' ? { color: 'secondary.light', backgroundColor: 'rgba(216, 169, 67, 0.12)' } : { color: 'text.primary' }}>
+            sx={navLinkStyles('/builder')}>
             Deck Builder
           </Button>
           <Button color="inherit" component={Link} to="/profile"
-            sx={currentPage === '/profile' ? { color: 'secondary.light', backgroundColor: 'rgba(216, 169, 67, 0.12)' } : { color: 'text.primary' }}>
+            sx={navLinkStyles('/profile')}>
             {Auth.getProfile().data.username}'s Decks
           </Button>
-          <Button color="inherit" onClick={logout} sx={{ color: 'text.primary' }}>
+          <Button color="inherit" onClick={logout} sx={{ ...navLinkStyles(''), borderBottomColor: 'transparent' }}>
             Logout
           </Button>
           </>
         ) : (
           <>
           <Button color="inherit" component={Link} to="/login"
-            sx={currentPage === '/login' ? { color: 'secondary.light', backgroundColor: 'rgba(216, 169, 67, 0.12)' } : { color: 'text.primary' }}>
+            sx={navLinkStyles('/login')}>
             Login
           </Button>
           <Button color="inherit" component={Link} to="/signup"
-            sx={currentPage === '/signup' ? { color: 'secondary.light', backgroundColor: 'rgba(216, 169, 67, 0.12)' } : { color: 'text.primary' }}>
+            sx={navLinkStyles('/signup')}>
             Signup
           </Button>
           </>

@@ -91,7 +91,13 @@ const theme = createTheme({
         },
         containedSecondary: {
           background: 'linear-gradient(135deg, #f3d888 0%, #c8962f 100%)',
+          color: '#101423',
           boxShadow: '0 10px 24px rgba(216, 169, 67, 0.22)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #ffe9a8 0%, #dda93d 100%)',
+            color: '#080b17',
+            boxShadow: '0 12px 28px rgba(216, 169, 67, 0.34)',
+          },
         },
       },
     },
