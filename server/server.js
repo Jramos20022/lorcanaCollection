@@ -2,7 +2,14 @@ const express = require('express');
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
 const path = require('path');
+const fs = require('fs');
 const { authMiddleware } = require('./utils/auth');
+const cardPriceRoutes = require('./routes/cardPrices');
+
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  process.loadEnvFile(envPath);
+}
 
 const { typeDefs, resolvers } = require('./schemas');
 const db = require('./config/connection');
@@ -20,6 +27,8 @@ const startApolloServer = async () => {
 
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
+
+  app.use('/api/card-price', cardPriceRoutes);
 
   app.use('/graphql', expressMiddleware(server, {
     context: authMiddleware
