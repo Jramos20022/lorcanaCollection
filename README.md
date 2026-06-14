@@ -1,143 +1,171 @@
-# Lorcana Deck Builder
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<div align="center">
 
-Welcome to the Lorcana Deck Builder! This website is a tool for fans of the Disney card game Lorcana to create, edit, and save their decks. You can also edit deck names and save decks to your user profile.
+# The Inkcaster
 
-![Alt text](./client/public/Screenshot.png)
+**A full-stack Disney Lorcana card browser, collection tool, and deck workshop.**
 
-  ## Table of Contents
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![Material UI](https://img.shields.io/badge/Material_UI-5-007FFF?logo=mui&logoColor=white)](https://mui.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-D8A943.svg)](LICENSE)
 
-  * [Features](#features)
-  * [Technologies](#technologies-used)
-  * [Installation](#installation)
-  * [Usage](#usage)
-  * [Deployment](#deployment)
-  * [Contributing](#contributing)
-  * [License](#license)
-  * [Contact](#contact)
+![The Inkcaster hero artwork](client/public/inkcaster-hero.jpg)
 
+</div>
 
-## Features
+## Overview
 
-- **Create Decks**: Build your own custom decks using a wide variety of cards.
-- **Edit Decks**: Modify your existing decks by adding or removing cards.
-- **Save Decks**: Save your decks to your user profile for easy access and management.
-- **Edit Deck Names**: Personalize your decks by changing their names.
+The Inkcaster helps Lorcana players explore the card catalog, compare special printings, check current TCGplayer values, and build decks that can be saved to a personal account. Its interface uses a dark ink-inspired palette with purple, gold, and deep-blue accents.
 
-## Technologies Used
+## Highlights
 
-  - React
-  - Material-UI
-  - Node.js
-  - Express
-  - MongoDB
-  - JWT (JSON Web Tokens)
-  - Render
-  - Apollo 
- 
+### Card archive
 
-- **Frontend**:
-  - React
-  - Material-UI
-  - Axios
+- Responsive card grid with continuous loading
+- Name search across standard, Enchanted, Epic, and Iconic printings
+- Filters for ink color, cost, type, rarity, inkability, set, and promo release
+- Newest-set, oldest-set, alphabetical, and ink-cost sorting
+- Complete set and promotional catalogs, including EPCOT and challenge promos
+- Card detail modal with artwork, classifications, rules text, set, rarity, and collector number
 
-- **Backend**:
-  - Node.js
-  - Express
+### Market values
 
-- **Database**:
-  - MongoDB
+- Current TCGplayer market and lowest-listing prices
+- Exact product matching for promotional cards
+- Variant-aware matching that prevents normal cards from being priced as Enchanted cards
+- Six-hour server-side cache to limit repeated Apify usage
+- Graceful fallback when pricing is unavailable or not configured
 
-- **State Management**:
-  - Redux
+### Deck workshop
 
-- **Authentication**:
-  - JWT (JSON Web Tokens)
+- Search and browse cards while building
+- Add up to four copies of a card
+- Organize selected cards by card type
+- Name, save, edit, and delete decks
+- View saved decks from an authenticated profile
 
-- **Deployment**:
-  - Render
+### Accounts
 
-- **Other Tools**:
-  - Webpack
-  - Babel
+- Email and password registration and login
+- JWT-based authentication
+- Password hashing with bcrypt
+- User-specific deck storage in MongoDB
 
-## Installation
+## Tech Stack
 
-To set up the project locally, follow these steps:
+| Area | Technology |
+| --- | --- |
+| Client | React 18, Vite, React Router, Material UI |
+| Data client | Apollo Client, GraphQL |
+| Server | Node.js 20, Express, Apollo Server |
+| Database | MongoDB, Mongoose |
+| Authentication | JWT, bcrypt |
+| Card data | Lorcast and Lorcana API |
+| Pricing | Apify TCGplayer Data Scraper |
 
-1. **Clone the repository**:
+## Local Setup
 
-    ```sh
-    git clone https://github.com/Velazqe/illuminears.git
-    ```
+### Requirements
 
-2. **Navigate to the project directory**:
+- [Node.js 20](https://nodejs.org/)
+- npm
+- A local MongoDB server or hosted MongoDB connection string
+- An optional [Apify](https://apify.com/) token for live card pricing
 
-    ```sh
-    cd illuminears
-    ```
+### Installation
 
-3. **Install dependencies**:
+```bash
+git clone git@github.com:Jramos20022/lorcanaCollection.git
+cd lorcanaCollection
+nvm use 20
+npm install
+```
 
-    ```sh
-    npm install
-    ```
+The root installation installs the server and client dependencies.
 
-4. **Start the development server**:
+### Environment
 
-    ```sh
-    npm start
-    ```
+Copy the server example file:
 
-5. **Open your browser** and navigate to `http://localhost:3000` to see the application in action.
+```bash
+cp server/.env.example server/.env
+```
 
-## Usage
+Configure the values you need:
 
-- **Search for Cards**: Use the search bar to find specific cards to add to your deck.
-- **Add Cards to Deck**: Click on a card to add it to your current deck.
-- **Remove Cards from Deck**: Click on a card in your deck to remove it.
-- **Save Decks**: Click the save button to save your deck to your user profile.
-- **Edit Deck Names**: Use the edit option to rename your decks.
+```env
+# Optional when MongoDB is running locally at the default address
+MONGODB_URI=mongodb://127.0.0.1:27017/illuminearsDB
 
-## Deployment
+# Optional; required only for live TCGplayer pricing
+APIFY_TOKEN=your_apify_api_token
+```
 
-The Lorcana Deck Builder is hosted on Render. You can access the live application using the following link: 
+`server/.env` is ignored by Git. Never commit API tokens or database credentials.
 
-[Lorcana Deck Builder on Render](https://your-app-url-on-render.com)
+### Run the app
+
+Make sure MongoDB is running, then start the client and server together:
+
+```bash
+npm run develop
+```
+
+Open [http://localhost:3000](http://localhost:3000). The API runs at `http://localhost:3001`, with GraphQL available at `/graphql`.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run develop` | Run the Vite client and Node server together |
+| `npm run build` | Create the production client bundle |
+| `npm start` | Start the Node server |
+| `cd client && npm run lint` | Check client source with ESLint |
+| `cd client && npm run preview` | Preview a production client build |
+
+## Project Structure
+
+```text
+illuminears/
+├── client/                 React and Material UI application
+│   └── src/
+│       ├── components/     Navigation, card archive, and deck tools
+│       ├── pages/          Home, cards, builder, profile, and auth routes
+│       └── utils/          Theme, authentication, queries, and mutations
+├── server/                 Express and Apollo GraphQL server
+│   ├── models/             User and deck models
+│   ├── routes/             TCGplayer pricing endpoint
+│   ├── schemas/            GraphQL schema and resolvers
+│   └── utils/              Authentication helpers
+└── scripts/                Local development launcher
+```
+
+## Data and Pricing
+
+Card records are loaded from third-party Lorcana catalogs. TCGplayer prices are requested through the [Apify TCGplayer Data Scraper](https://apify.com/devcake/tcgplayer-data-scraper) by the server, keeping the Apify token out of browser code.
+
+Special and promotional cards are matched using rarity information and exact TCGplayer product IDs when available. Prices are informational and may change between requests.
 
 ## Contributing
 
-We welcome contributions from the community! To contribute, follow these steps:
+1. Fork the repository.
+2. Create a branch: `git switch -c feature/your-feature`.
+3. Make and test your changes.
+4. Commit and push the branch.
+5. Open a pull request with a clear description and screenshots for visual changes.
 
-1. **Fork the repository**.
-2. **Create a new branch**:
+## Contributors
 
-    ```sh
-    git checkout -b feature-name
-    ```
-
-3. **Make your changes**.
-4. **Commit your changes**:
-
-    ```sh
-    git commit -m "Add some feature"
-    ```
-
-5. **Push to the branch**:
-
-    ```sh
-    git push origin feature-name
-    ```
-
-6. **Open a pull request**.
+- [Justin Ramos](https://github.com/Jramos20022)
+- [Nicholas Poulson](https://github.com/42Salokin)
+- [Emanuel Velazquez](https://github.com/Velazqe)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is available under the [MIT License](LICENSE).
 
-## Contact
+## Disclaimer
 
-For any questions or suggestions, feel free to open an issue or contact us directly.
-    - Nicholas Poulson: https://github.com/42Salokin
-    - Justin Ramos: https://github.com/Jramos20022    
-    - Emanuel Velazquez: https://github.com/Velazqe
+The Inkcaster is an independent fan project. Disney Lorcana, its characters, card artwork, and related properties belong to their respective owners. This project is not affiliated with or endorsed by Disney, Ravensburger, TCGplayer, Lorcast, or Apify.
