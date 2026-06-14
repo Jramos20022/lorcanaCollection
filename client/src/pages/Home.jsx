@@ -4,8 +4,8 @@ import StyleRoundedIcon from '@mui/icons-material/StyleRounded';
 import CollectionsBookmarkRoundedIcon from '@mui/icons-material/CollectionsBookmarkRounded';
 import { Link } from 'react-router-dom';
 import Auth from "../utils/auth";
-import backgroundImage from "../../public/inkcaster-hero.jpg";
 
+const backgroundImage = '/inkcaster-hero.jpg';
 
 const Home = () => {
   const isLoggedIn = Auth.loggedIn();
