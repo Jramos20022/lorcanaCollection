@@ -93,6 +93,7 @@ const resolvers = {
       return { token, user };
     },
     addDeck: async (parent, { deckName, cards }, context) => {
+      if (!context.user) throw AuthenticationError;
       
       const deck = await Deck.create({
         deckName,

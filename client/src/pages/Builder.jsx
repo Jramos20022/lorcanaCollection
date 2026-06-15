@@ -1,12 +1,13 @@
-import { Container, Typography } from '@mui/material';
 import BuilderCards from '../components/BuilderCards';
+import { useLocation } from 'react-router-dom';
 
 const Builder = () => {
+    const location = useLocation();
+    const selectedDeck = location.state?.selectedDeck || null;
+    const isEditing = Boolean(location.state?.isEditing && selectedDeck);
 
     return (
-      <Container maxWidth="xl" sx={{ flexGrow: 1, paddingTop: '20px', pb: 4 }}>
-         <BuilderCards />   
-      </Container>
+      <BuilderCards selectedDeck={selectedDeck} isEditing={isEditing} />
     );
   };
   
