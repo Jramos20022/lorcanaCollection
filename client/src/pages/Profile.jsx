@@ -1,15 +1,14 @@
 import { Container, Typography, Grid, Card, CardContent, CardMedia, CircularProgress, Button } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
+import { useNavigate } from 'react-router-dom';
 import { QUERY_MY_DECKS } from "../utils/queries";
 import { REMOVE_DECK } from "../utils/mutations";
 import Auth from "../utils/auth";
-import BuilderCards from '../components/BuilderCards';
 
 
 const Profile = () => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedDeck, setSelectedDeck] = useState(null);
+  const navigate = useNavigate();
   // Fetching decks data using useQuery
   const { loading, error, data, refetch } = useQuery(QUERY_MY_DECKS);
   // Remove selected deck using useMutation
@@ -26,11 +25,8 @@ const Profile = () => {
   // If there's an error fetching data, display an error message
   if (error) return <Typography variant="h6">Error fetching decks: {error.message}</Typography>; 
   
-  // Take deck data from edit button, set selectedDeck state to that deck, 
-  // Set isEditing state to true to conditionally render BuilderCards component with deck prop
   const editDeck = (deck) => {
-    setSelectedDeck(deck);
-    setIsEditing(true);
+    navigate('/builder', { state: { selectedDeck: deck, isEditing: true } });
   };
 
   // Delete the selected deck by ID
@@ -49,12 +45,9 @@ const Profile = () => {
 
   return (
     <Container maxWidth="xl" sx={{ flexGrow: 1, paddingTop: '32px', pb: 5 }}>
-      {isEditing ? (
-        <BuilderCards selectedDeck={selectedDeck} isEditing={isEditing} setIsEditing={setIsEditing} />
-      ) : (
-        <> 
+      <>
           <Typography variant="h3" sx={{ textAlign: 'center', marginBottom: '28px', color: 'secondary.light' }}>
-            {Auth.getProfile().data.username}'s Decks
+            {`${Auth.getProfile().data.username}'s Decks`}
           </Typography>
   
           <Grid container spacing={3}>
@@ -98,8 +91,7 @@ const Profile = () => {
               </Grid>
             ))}
           </Grid>
-        </>
-      )}
+      </>
     </Container>
   );
   
