@@ -7,8 +7,8 @@ import { Box, Card, CardContent, CardHeader, Container, Grid, TextField, Button,
 
 import Auth from '../utils/auth';
 
-const Login = (props) => {
-  const [formState, setFormState] = useState({ email: '', password: '' });
+const Login = () => {
+  const [formState, setFormState] = useState({ username: '', password: '' });
   const [login, { error, data }] = useMutation(LOGIN_USER);
 
   // update state based on form input changes
@@ -24,7 +24,6 @@ const Login = (props) => {
   // submit form
   const handleFormSubmit = async (event) => {
     event.preventDefault();
-    console.log(formState);
     try {
       const { data } = await login({
         variables: { ...formState },
@@ -37,7 +36,7 @@ const Login = (props) => {
 
     // clear form values
     setFormState({
-      email: '',
+      username: '',
       password: '',
     });
   };
@@ -60,19 +59,11 @@ const Login = (props) => {
                     label="Username"
                     name="username"
                     type="text"
-                    value={formState.name}
+                    value={formState.username}
                     onChange={handleChange}
                     fullWidth
                     margin="normal"
-                  />
-                  <TextField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={formState.email}
-                    onChange={handleChange}
-                    fullWidth
-                    margin="normal"
+                    required
                   />
                   <TextField
                     label="Password"
@@ -82,9 +73,10 @@ const Login = (props) => {
                     onChange={handleChange}
                     fullWidth
                     margin="normal"
+                    required
                   />
                   <Button variant="contained" color="secondary" type="submit" fullWidth sx={{ mt: 2 }}>
-                    Submit
+                    Log In
                   </Button>
                 </form>
               )}

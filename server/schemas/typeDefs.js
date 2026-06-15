@@ -91,7 +91,7 @@ input CardInput {
 
   type Mutation {
     addUser(username: String!, email: String!, password: String!): Auth
-    login(email: String!, password: String!): Auth
+    login(username: String!, password: String!): Auth
     addDeck(deckName: String!, cards: [CardInput]): Deck
     updateDeck(deckId: ID!, deckName: String, cards: [CardInput]): Deck
     addCard(deckId: ID!, image: String!): Deck

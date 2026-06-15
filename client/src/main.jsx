@@ -8,8 +8,6 @@ import theme from './utils/theme.js';
 
 import App from "./App.jsx";
 import Home from "./pages/Home";
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import ErrorPage from "./pages/ErrorPage";
 import Cards from "./pages/Cards";
@@ -30,11 +28,11 @@ const router = createBrowserRouter([
       },
       {
         path: "/login",
-        element: <Login />,
+        element: <Home />,
       },
       {
         path: "/signup",
-        element: <Signup />,
+        element: <Home />,
       },
       {
         path: "/profile",

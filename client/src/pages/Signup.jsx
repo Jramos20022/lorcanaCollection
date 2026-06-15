@@ -12,29 +12,40 @@ const Signup = () => {
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
+  const [validationError, setValidationError] = useState('');
   const [addUser, { error, data }] = useMutation(ADD_USER);
+
+  const passwordsMatch = formState.password === formState.confirmPassword;
+  const formComplete = Object.values(formState).every((value) => value.trim());
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setFormState({
-      ...formState,
+    setFormState((currentState) => ({
+      ...currentState,
       [name]: value,
-    });
-    console.log(formState);
+    }));
+    setValidationError('');
   };
 
   const handleFormSubmit = async (event) => {
     event.preventDefault();
-    console.log(formState);
+    if (!passwordsMatch) {
+      setValidationError('Passwords must match before you can sign up.');
+      return;
+    }
 
     try {
-      const { data } = await addUser({
-        variables: { ...formState },
+      const { data: signupData } = await addUser({
+        variables: {
+          username: formState.username.trim(),
+          email: formState.email.trim(),
+          password: formState.password,
+        },
       });
-      console.log(data);
-      Auth.login(data.addUser.token);
+      Auth.login(signupData.addUser.token);
     } catch (e) {
       console.error(e);
     }
@@ -55,15 +66,6 @@ const Signup = () => {
               ) : (
                 <form onSubmit={handleFormSubmit} >
                   <TextField
-                    label="Username"
-                    name="username"
-                    type="text"
-                    value={formState.name}
-                    onChange={handleChange}
-                    fullWidth
-                    margin="normal"
-                  />
-                  <TextField
                     label="Email"
                     name="email"
                     type="email"
@@ -71,6 +73,17 @@ const Signup = () => {
                     onChange={handleChange}
                     fullWidth
                     margin="normal"
+                    required
+                  />
+                  <TextField
+                    label="Username"
+                    name="username"
+                    type="text"
+                    value={formState.username}
+                    onChange={handleChange}
+                    fullWidth
+                    margin="normal"
+                    required
                   />
                   <TextField
                     label="Password"
@@ -80,9 +93,34 @@ const Signup = () => {
                     onChange={handleChange}
                     fullWidth
                     margin="normal"
+                    required
                   />
-                  <Button variant="contained" color="secondary" type="submit" fullWidth sx={{ mt: 2 }}>
-                    Submit
+                  <TextField
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    type="password"
+                    value={formState.confirmPassword}
+                    onChange={handleChange}
+                    error={Boolean(formState.confirmPassword) && !passwordsMatch}
+                    helperText={formState.confirmPassword && !passwordsMatch ? 'Passwords do not match.' : ' '}
+                    fullWidth
+                    margin="normal"
+                    required
+                  />
+                  {validationError && (
+                    <Typography color="error" role="alert" sx={{ mt: 1 }}>
+                      {validationError}
+                    </Typography>
+                  )}
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    type="submit"
+                    fullWidth
+                    disabled={!formComplete || !passwordsMatch}
+                    sx={{ mt: 2 }}
+                  >
+                    Sign Up
                   </Button>
                 </form>
               )}
