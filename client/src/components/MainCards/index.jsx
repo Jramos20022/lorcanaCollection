@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery } from '@apollo/client';
 import {
+  Alert,
   Box,
   Button,
   Card,
-  CardMedia,
   Checkbox,
   Chip,
   CircularProgress,
@@ -18,6 +19,7 @@ import {
   Modal,
   Paper,
   Select,
+  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -28,6 +30,15 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
+import Auth from '../../utils/auth';
+import {
+  ADD_COLLECTION_CARD,
+  UPDATE_COLLECTION_CARD,
+} from '../../utils/mutations';
+import { QUERY_MY_COLLECTION } from '../../utils/queries';
+import FoilCardImage from '../FoilCardImage';
 
 const PAGE_SIZE = 48;
 const COLORS = ['Amber', 'Amethyst', 'Emerald', 'Ruby', 'Sapphire', 'Steel'];
@@ -93,6 +104,24 @@ const normalizeLorcastCard = (card) => ({
   TCGplayer_URL: card.purchase_uris?.tcgplayer || '',
 });
 
+const toCollectionCardInput = (card) => ({
+  image: card.Image,
+  name: card.Name,
+  set_name: card.Set_Name || '',
+  set_num: Number(card.Set_Num) || 0,
+  color: card.Color || '',
+  cost: Number(card.Cost) || 0,
+  inkable: Boolean(card.Inkable),
+  type: card.Type || 'Card',
+  rarity: card.Rarity || '',
+  unique_id: card.Unique_ID || `${card.Set_ID}-${card.Card_Num}-${card.Name}`,
+  card_num: Number.parseInt(card.Card_Num, 10) || 0,
+  set_id: card.Set_ID || '',
+  count: 0,
+  standard_count: 0,
+  foil_count: 0,
+});
+
 const FilterSection = ({ label, children }) => (
   <Box>
     <Typography
@@ -102,6 +131,49 @@ const FilterSection = ({ label, children }) => (
       {label}
     </Typography>
     <Box sx={{ mt: 1 }}>{children}</Box>
+  </Box>
+);
+
+const PrintingCounter = ({ cardName, label, quantity, saving, onChange, onPreview }) => (
+  <Box
+    onMouseEnter={() => onPreview?.(true)}
+    onMouseLeave={() => onPreview?.(false)}
+    onFocusCapture={() => onPreview?.(true)}
+    onBlurCapture={() => onPreview?.(false)}
+    sx={{
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1fr) 28px 28px 28px',
+      alignItems: 'center',
+      minHeight: 34,
+      px: 0.5,
+      borderRadius: 1,
+      bgcolor: label === 'Foil' ? 'rgba(119, 78, 178, 0.14)' : 'transparent',
+    }}
+  >
+    <Typography variant="caption" sx={{ pl: 0.25, fontWeight: 800, color: label === 'Foil' ? 'secondary.light' : 'text.secondary' }}>
+      {label}
+    </Typography>
+    <IconButton
+      size="small"
+      aria-label={`Remove one ${label.toLowerCase()} ${cardName}`}
+      disabled={quantity === 0 || saving}
+      onClick={(event) => onChange(event, -1)}
+      sx={{ width: 28, height: 28 }}
+    >
+      <RemoveRoundedIcon sx={{ fontSize: 18 }} />
+    </IconButton>
+    <Typography sx={{ textAlign: 'center', fontSize: '0.78rem', fontWeight: 900, lineHeight: 1 }}>
+      {saving ? <CircularProgress size={14} color="secondary" /> : quantity}
+    </Typography>
+    <IconButton
+      size="small"
+      aria-label={`Add one ${label.toLowerCase()} ${cardName}`}
+      disabled={saving}
+      onClick={(event) => onChange(event, 1)}
+      sx={{ width: 28, height: 28 }}
+    >
+      <AddRoundedIcon sx={{ fontSize: 18 }} />
+    </IconButton>
   </Box>
 );
 
@@ -128,11 +200,65 @@ const MainCards = () => {
   const [cardPrice, setCardPrice] = useState(null);
   const [cardPriceError, setCardPriceError] = useState('');
   const [loadingCardPrice, setLoadingCardPrice] = useState(false);
+  const [addingToCollection, setAddingToCollection] = useState(false);
+  const [quickSavingId, setQuickSavingId] = useState('');
+  const [foilPreviewId, setFoilPreviewId] = useState('');
+  const [collectionNotice, setCollectionNotice] = useState(null);
+  const [addCollectionCard] = useMutation(ADD_COLLECTION_CARD);
+  const [updateCollectionCard] = useMutation(UPDATE_COLLECTION_CARD);
+  const { data: collectionData, refetch: refetchCollection } = useQuery(QUERY_MY_COLLECTION, {
+    skip: !Auth.loggedIn(),
+  });
   const loaderRef = useRef(null);
   const hasCatalogFilters = filters.sets.length > 0 || filters.promos.length > 0;
   const hasNameSearch = query.trim().length > 0;
   const hasOldestSetSort = sortBy === 'set-oldest';
   const hasRemoteFilters = hasCatalogFilters || filters.rarities.length > 0 || hasNameSearch || hasOldestSetSort;
+  const collectionById = useMemo(
+    () => new Map((collectionData?.myCollection || []).map((card) => [card.unique_id, card])),
+    [collectionData]
+  );
+
+  const handleAddToCollection = async (printing) => {
+    if (!selectedCard) return;
+
+    setAddingToCollection(true);
+    try {
+      await addCollectionCard({ variables: { card: toCollectionCardInput(selectedCard), printing } });
+      await refetchCollection();
+      const finish = printing === 'foil' ? 'Foil' : 'Standard';
+      setCollectionNotice({ severity: 'success', message: `${finish} ${selectedCard.Name} added to your collection.` });
+    } catch (requestError) {
+      setCollectionNotice({ severity: 'error', message: requestError.message });
+    } finally {
+      setAddingToCollection(false);
+    }
+  };
+
+  const handleQuickCollectionChange = async (event, card, printing, change) => {
+    event.stopPropagation();
+    const cardInput = toCollectionCardInput(card);
+    const ownedCard = collectionById.get(cardInput.unique_id);
+    const countField = `${printing}_count`;
+    const currentCount = ownedCard?.[countField] || 0;
+    const nextCount = currentCount + change;
+
+    if (nextCount < 0) return;
+
+    setQuickSavingId(`${cardInput.unique_id}:${printing}`);
+    try {
+      if (change > 0) {
+        await addCollectionCard({ variables: { card: cardInput, printing } });
+      } else {
+        await updateCollectionCard({ variables: { card: cardInput, printing, quantity: nextCount } });
+      }
+      await refetchCollection();
+    } catch (requestError) {
+      setCollectionNotice({ severity: 'error', message: requestError.message });
+    } finally {
+      setQuickSavingId('');
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -679,31 +805,57 @@ const MainCards = () => {
               gap: { xs: 1.25, sm: 2 },
             }}
           >
-            {filteredCards.map((card) => (
-              <Card
-                key={card.Unique_ID || `${card.Set_ID}-${card.Card_Num}-${card.Name}`}
-                onClick={() => setSelectedCard(card)}
-                sx={{
-                  aspectRatio: '0.716',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    borderColor: 'secondary.main',
-                    boxShadow: '0 20px 38px rgba(0, 0, 0, 0.48)',
-                  },
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  image={card.Image}
-                  alt={card.Name}
-                  loading="lazy"
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </Card>
-            ))}
+            {filteredCards.map((card) => {
+              const cardId = card.Unique_ID || `${card.Set_ID}-${card.Card_Num}-${card.Name}`;
+              const ownedCard = collectionById.get(cardId);
+              const standardCount = ownedCard?.standard_count || 0;
+              const foilCount = ownedCard?.foil_count || 0;
+
+              return (
+                <Card
+                  key={cardId}
+                  sx={{
+                    overflow: 'hidden',
+                    transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-5px)',
+                      borderColor: 'secondary.main',
+                      boxShadow: '0 20px 38px rgba(0, 0, 0, 0.48)',
+                    },
+                  }}
+                >
+                  <FoilCardImage
+                    image={card.Image}
+                    alt={card.Name}
+                    loading="lazy"
+                    onClick={() => setSelectedCard(card)}
+                    active={foilPreviewId === cardId}
+                  />
+                  {Auth.loggedIn() && (
+                    <Stack
+                      spacing={0.25}
+                      sx={{ minHeight: 72, p: 0.5, bgcolor: 'rgba(13, 13, 31, 0.94)' }}
+                    >
+                      <PrintingCounter
+                        cardName={card.Name}
+                        label="Standard"
+                        quantity={standardCount}
+                        saving={quickSavingId === `${cardId}:standard`}
+                        onChange={(event, change) => handleQuickCollectionChange(event, card, 'standard', change)}
+                      />
+                      <PrintingCounter
+                        cardName={card.Name}
+                        label="Foil"
+                        quantity={foilCount}
+                        saving={quickSavingId === `${cardId}:foil`}
+                        onChange={(event, change) => handleQuickCollectionChange(event, card, 'foil', change)}
+                        onPreview={(active) => setFoilPreviewId(active ? cardId : '')}
+                      />
+                    </Stack>
+                  )}
+                </Card>
+              );
+            })}
           </Box>
 
           {!loading && !loadingSetCards && filteredCards.length === 0 && (
@@ -797,6 +949,28 @@ const MainCards = () => {
                 <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                   {selectedCard.Body_Text || selectedCard.Flavor_Text || 'No additional card text.'}
                 </Typography>
+                {Auth.loggedIn() && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <AddRoundedIcon />}
+                      disabled={addingToCollection}
+                      onClick={() => handleAddToCollection('standard')}
+                    >
+                      Add Standard
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <AddRoundedIcon />}
+                      disabled={addingToCollection}
+                      onClick={() => handleAddToCollection('foil')}
+                    >
+                      Add Foil
+                    </Button>
+                  </Stack>
+                )}
                 <Divider sx={{ my: 2 }} />
                 <Typography variant="overline" sx={{ color: 'secondary.light', fontWeight: 900 }}>
                   TCGplayer value
@@ -835,6 +1009,18 @@ const MainCards = () => {
           )}
         </Box>
       </Modal>
+      <Snackbar
+        open={Boolean(collectionNotice)}
+        autoHideDuration={3500}
+        onClose={() => setCollectionNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {collectionNotice ? (
+          <Alert severity={collectionNotice.severity} onClose={() => setCollectionNotice(null)} variant="filled">
+            {collectionNotice.message}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
     </Box>
   );
 };

@@ -108,3 +108,25 @@ query MyDecks {
   }
 }
 `;
+
+export const QUERY_MY_COLLECTION = gql`
+  query MyCollection {
+    myCollection {
+      image
+      name
+      set_name
+      set_num
+      color
+      cost
+      inkable
+      type
+      rarity
+      unique_id
+      card_num
+      set_id
+      count
+      standard_count
+      foil_count
+    }
+  }
+`;

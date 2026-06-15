@@ -40,6 +40,8 @@ const typeDefs = `
   set_id: String
   move_cost: Int
   count: Int!
+  standard_count: Int
+  foil_count: Int
   }
 
 input CardInput {
@@ -68,6 +70,8 @@ input CardInput {
   set_id: String
   move_cost: Int
   count: Int!
+  standard_count: Int
+  foil_count: Int
 }
 
   type Auth {
@@ -82,6 +86,7 @@ input CardInput {
     deck(deckId: ID!): Deck
     me: User
     myDecks: [Deck]
+    myCollection: [Card]
   }
 
   type Mutation {
@@ -92,6 +97,9 @@ input CardInput {
     addCard(deckId: ID!, image: String!): Deck
     removeDeck(deckId: ID!): Deck
     removeCard(deckId: ID!, cardId: ID!): Deck
+    addCollectionCard(card: CardInput!, printing: String!): [Card]
+    updateCollectionCard(card: CardInput!, printing: String!, quantity: Int!): [Card]
+    removeCollectionCard(uniqueId: String!): [Card]
   }
 `;
 

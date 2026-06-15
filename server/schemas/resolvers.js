@@ -1,6 +1,31 @@
 const { User, Deck } = require("../models");
 const { signToken, AuthenticationError } = require("../utils/auth");
 
+const getPrintingField = (printing) => {
+  if (printing === "standard") return "standard_count";
+  if (printing === "foil") return "foil_count";
+  throw new Error("Printing must be standard or foil.");
+};
+
+const migrateCollectionCard = (card) => {
+  if (!card.printing_counts_migrated) {
+    card.standard_count = Math.max(0, Number(card.count) || 0);
+    card.foil_count = 0;
+    card.printing_counts_migrated = true;
+  }
+
+  card.count = (Number(card.standard_count) || 0) + (Number(card.foil_count) || 0);
+  return card;
+};
+
+const getCollectionCardDetails = (card) => {
+  const details = { ...card };
+  delete details.count;
+  delete details.standard_count;
+  delete details.foil_count;
+  return details;
+};
+
 const resolvers = {
   Query: {
     users: async () => {
@@ -28,6 +53,16 @@ const resolvers = {
         return Deck.find({ user_id: context.user._id }).sort({ name: 1 }); 
       }
       throw AuthenticationError;
+    },
+    myCollection: async (parent, args, context) => {
+      if (!context.user) throw AuthenticationError;
+
+      const user = await User.findById(context.user._id);
+      if (!user) throw AuthenticationError;
+
+      user.cardCollection.forEach(migrateCollectionCard);
+      await user.save();
+      return user.cardCollection;
     },
   },
 
@@ -117,6 +152,73 @@ const resolvers = {
         { $set: updateFields },
         { new: true }
       );
+    },
+    updateCollectionCard: async (parent, { card, printing, quantity }, context) => {
+      if (!context.user) throw AuthenticationError;
+
+      const user = await User.findById(context.user._id);
+      if (!user) throw AuthenticationError;
+
+      const printingField = getPrintingField(printing);
+      const existingCard = user.cardCollection.find((item) => item.unique_id === card.unique_id);
+      if (existingCard) {
+        migrateCollectionCard(existingCard);
+        existingCard.set({ ...getCollectionCardDetails(card), printing_counts_migrated: true });
+        existingCard[printingField] = Math.max(0, quantity);
+        migrateCollectionCard(existingCard);
+      } else {
+        const printingCounts = {
+          standard_count: printing === "standard" ? Math.max(0, quantity) : 0,
+          foil_count: printing === "foil" ? Math.max(0, quantity) : 0,
+        };
+        user.cardCollection.push({
+          ...card,
+          ...printingCounts,
+          count: printingCounts.standard_count + printingCounts.foil_count,
+          printing_counts_migrated: true,
+        });
+      }
+
+      user.cardCollection = user.cardCollection.filter((item) => item.count > 0);
+
+      await user.save();
+      return user.cardCollection;
+    },
+    addCollectionCard: async (parent, { card, printing }, context) => {
+      if (!context.user) throw AuthenticationError;
+
+      const user = await User.findById(context.user._id);
+      if (!user) throw AuthenticationError;
+
+      const printingField = getPrintingField(printing);
+      const existingCard = user.cardCollection.find((item) => item.unique_id === card.unique_id);
+      if (existingCard) {
+        migrateCollectionCard(existingCard);
+        existingCard.set({ ...getCollectionCardDetails(card), printing_counts_migrated: true });
+        existingCard[printingField] += 1;
+        migrateCollectionCard(existingCard);
+      } else {
+        user.cardCollection.push({
+          ...card,
+          count: 1,
+          standard_count: printing === "standard" ? 1 : 0,
+          foil_count: printing === "foil" ? 1 : 0,
+          printing_counts_migrated: true,
+        });
+      }
+
+      await user.save();
+      return user.cardCollection;
+    },
+    removeCollectionCard: async (parent, { uniqueId }, context) => {
+      if (!context.user) throw AuthenticationError;
+
+      const user = await User.findById(context.user._id);
+      if (!user) throw AuthenticationError;
+
+      user.cardCollection = user.cardCollection.filter((card) => card.unique_id !== uniqueId);
+      await user.save();
+      return user.cardCollection;
     },
   },
 };

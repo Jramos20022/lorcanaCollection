@@ -82,9 +82,13 @@ export default function Navbar() {
             sx={navLinkStyles('/builder')}>
             Deck Builder
           </Button>
+          <Button color="inherit" component={Link} to="/collection"
+            sx={navLinkStyles('/collection')}>
+            Collection
+          </Button>
           <Button color="inherit" component={Link} to="/profile"
             sx={navLinkStyles('/profile')}>
-            {Auth.getProfile().data.username}'s Decks
+            {Auth.getProfile().data.username} Decks
           </Button>
           <Button color="inherit" onClick={logout} sx={{ ...navLinkStyles(''), borderBottomColor: 'transparent' }}>
             Logout

@@ -104,3 +104,36 @@ export const UPDATE_DECK = gql`
     }
   }
 `;
+
+export const UPDATE_COLLECTION_CARD = gql`
+  mutation UpdateCollectionCard($card: CardInput!, $printing: String!, $quantity: Int!) {
+    updateCollectionCard(card: $card, printing: $printing, quantity: $quantity) {
+      unique_id
+      count
+      standard_count
+      foil_count
+    }
+  }
+`;
+
+export const ADD_COLLECTION_CARD = gql`
+  mutation AddCollectionCard($card: CardInput!, $printing: String!) {
+    addCollectionCard(card: $card, printing: $printing) {
+      unique_id
+      count
+      standard_count
+      foil_count
+    }
+  }
+`;
+
+export const REMOVE_COLLECTION_CARD = gql`
+  mutation RemoveCollectionCard($uniqueId: String!) {
+    removeCollectionCard(uniqueId: $uniqueId) {
+      unique_id
+      count
+      standard_count
+      foil_count
+    }
+  }
+`;

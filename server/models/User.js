@@ -1,6 +1,24 @@
 const { Schema, model } = require("mongoose");
 const bcrypt = require("bcrypt");
-const Deck = require("./Deck");
+
+const collectionCardSchema = new Schema({
+  image: { type: String, required: true },
+  name: { type: String, required: true },
+  set_name: String,
+  set_num: Number,
+  color: String,
+  cost: Number,
+  inkable: Boolean,
+  type: String,
+  rarity: String,
+  unique_id: { type: String, required: true },
+  card_num: Number,
+  set_id: String,
+  count: { type: Number, required: true, min: 0, default: 0 },
+  standard_count: { type: Number, min: 0, default: 0 },
+  foil_count: { type: Number, min: 0, default: 0 },
+  printing_counts_migrated: { type: Boolean, default: false },
+});
 
 const userSchema = new Schema({
   username: {
@@ -26,6 +44,7 @@ const userSchema = new Schema({
       ref: "Deck", 
     },
   ],
+  cardCollection: [collectionCardSchema],
 });
 
 userSchema.pre("save", async function (next) {
