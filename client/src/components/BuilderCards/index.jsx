@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -34,6 +34,7 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { ADD_DECK, UPDATE_DECK } from '../../utils/mutations';
+import { QUERY_MY_COLLECTION } from '../../utils/queries';
 
 const PAGE_SIZE = 48;
 const COLORS = ['Amber', 'Amethyst', 'Emerald', 'Ruby', 'Sapphire', 'Steel'];
@@ -109,6 +110,7 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
   const [deckView, setDeckView] = useState('list');
   const [addDeck] = useMutation(ADD_DECK);
   const [updateDeck] = useMutation(UPDATE_DECK);
+  const { data: collectionData, loading: collectionLoading } = useQuery(QUERY_MY_COLLECTION);
 
   const loadCards = useCallback(async ({ pageNumber = 1, search = '', append = false } = {}) => {
     append ? setLoadingMore(true) : setLoading(true);
@@ -144,6 +146,12 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
     () => new Map(selectedCards.map((card) => [cardKey(card), card])),
     [selectedCards]
   );
+  const collectionById = useMemo(() => new Map(
+    (collectionData?.myCollection || []).map((card) => [
+      card.unique_id,
+      (Number(card.standard_count) || 0) + (Number(card.foil_count) || 0),
+    ])
+  ), [collectionData]);
   const totalCards = selectedCards.reduce((total, card) => total + (Number(card.count) || 0), 0);
   const uniqueCards = selectedCards.length;
   const inkableCards = selectedCards.reduce((total, card) => total + (card.inkable ? card.count : 0), 0);
@@ -156,6 +164,10 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
   const hasTooManyColors = deckColors.length > 2;
   const hasTooManyCopies = selectedCards.some((card) => card.count > 4);
   const isLegalDeck = totalCards >= 60 && !hasTooManyColors && !hasTooManyCopies;
+  const ownedDeckCards = selectedCards.reduce((total, card) => (
+    total + Math.min(Number(card.count) || 0, collectionById.get(cardKey(card)) || 0)
+  ), 0);
+  const missingDeckCards = Math.max(0, totalCards - ownedDeckCards);
 
   const typeCounts = useMemo(() => Object.fromEntries(
     [...CARD_TYPES, 'Other'].map((type) => [
@@ -299,6 +311,8 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, sm: 1.5 } }}>
               {visibleCards.map((card) => {
                 const quantity = selectedById.get(cardKey(card))?.count || 0;
+                const ownedQuantity = collectionById.get(cardKey(card)) || 0;
+                const isMissingCopies = quantity > ownedQuantity;
                 return (
                   <Card key={cardKey(card)} sx={{ overflow: 'hidden', borderColor: quantity ? 'secondary.main' : 'divider' }}>
                     <CardMedia component="img" image={card.image} alt={card.name} loading="lazy" sx={{ width: '100%', aspectRatio: '0.716', objectFit: 'cover' }} />
@@ -311,6 +325,19 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
                         <AddRoundedIcon fontSize="small" />
                       </IconButton>
                     </Box>
+                    <Typography
+                      variant="caption"
+                      textAlign="center"
+                      sx={{
+                        display: 'block',
+                        py: 0.35,
+                        bgcolor: 'rgba(8, 10, 23, 0.96)',
+                        color: isMissingCopies ? 'error.main' : ownedQuantity ? 'success.main' : 'text.secondary',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {collectionLoading ? 'Checking collection...' : `Owned ${ownedQuantity}${isMissingCopies ? ` · Need ${quantity - ownedQuantity}` : ''}`}
+                    </Typography>
                   </Card>
                 );
               })}
@@ -365,6 +392,15 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
           </Stack>
           <LinearProgress variant="determinate" value={Math.min(100, (totalCards / 60) * 100)} color={isLegalDeck ? 'success' : 'secondary'} sx={{ mt: 1.25, height: 6, borderRadius: 1 }} />
           {hasTooManyColors && <Alert severity="warning" sx={{ mt: 1.5 }}>Lorcana decks may use no more than two ink colors.</Alert>}
+          {totalCards > 0 && (
+            <Alert severity={missingDeckCards ? 'warning' : 'success'} sx={{ mt: 1.5 }}>
+              {collectionLoading
+                ? 'Checking this deck against your collection...'
+                : missingDeckCards
+                  ? `You own ${ownedDeckCards} of ${totalCards} cards needed. ${missingDeckCards} missing.`
+                  : `You own all ${totalCards} cards needed for this deck.`}
+            </Alert>
+          )}
 
           <Tabs value={deckTab} onChange={(_, value) => setDeckTab(value)} variant="fullWidth" sx={{ mt: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Tab value="cards" label={`Cards (${uniqueCards})`} />
@@ -403,6 +439,12 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
                       <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                         <Typography noWrap fontWeight={800} sx={{ fontSize: '0.86rem' }}>{card.name}</Typography>
                         <Typography variant="caption" color="text.secondary">{card.type} · Cost {card.cost ?? 0}</Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ display: 'block', color: card.count > (collectionById.get(cardKey(card)) || 0) ? 'error.main' : 'success.main', fontWeight: 800 }}
+                        >
+                          Owned {collectionById.get(cardKey(card)) || 0} · Deck {card.count}
+                        </Typography>
                       </Box>
                       <IconButton size="small" onClick={() => changeQuantity(card, -1)}><RemoveRoundedIcon fontSize="small" /></IconButton>
                       <Typography sx={{ width: 18, textAlign: 'center', fontWeight: 900 }}>{card.count}</Typography>
@@ -447,6 +489,13 @@ const BuilderCards = ({ selectedDeck, isEditing = false }) => {
                         ))}
                       </Box>
                       <Typography noWrap fontWeight={800} sx={{ mt: 0.75, fontSize: '0.78rem' }}>{card.name}</Typography>
+                      <Typography
+                        variant="caption"
+                        textAlign="center"
+                        sx={{ display: 'block', color: card.count > (collectionById.get(cardKey(card)) || 0) ? 'error.main' : 'success.main', fontWeight: 800 }}
+                      >
+                        Owned {collectionById.get(cardKey(card)) || 0}
+                      </Typography>
                       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mt: 0.5 }}>
                         <IconButton size="small" onClick={() => changeQuantity(card, -1)} aria-label={`Remove ${card.name}`}>
                           <RemoveRoundedIcon fontSize="small" />
