@@ -72,8 +72,11 @@ const resolvers = {
       const token = signToken(user);
       return { token, user };
     },
-    login: async (parent, { email, password }) => {
-      const user = await User.findOne({ email });
+    login: async (parent, { username, password }) => {
+      const escapedUsername = username.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const user = await User.findOne({
+        username: { $regex: `^${escapedUsername}$`, $options: "i" },
+      });
 
       if (!user) {
         throw AuthenticationError;

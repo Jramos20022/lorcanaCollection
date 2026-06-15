@@ -1,9 +1,21 @@
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import Auth from "../../utils/auth";
+import AuthModal from '../AuthModal';
 
 export default function Navbar() {
   const currentPage = useLocation().pathname;
+  const navigate = useNavigate();
+  const [authMode, setAuthMode] = useState(() => {
+    if (currentPage === '/login') return 'login';
+    if (currentPage === '/signup') return 'signup';
+    return '';
+  });
+  useEffect(() => {
+    if (currentPage === '/login') setAuthMode('login');
+    if (currentPage === '/signup') setAuthMode('signup');
+  }, [currentPage]);
   const navLinkStyles = (path) => ({
     color: currentPage === path ? 'secondary.light' : 'text.primary',
     backgroundColor: 'transparent',
@@ -24,6 +36,10 @@ export default function Navbar() {
   const logout = (event) => {
     event.preventDefault();
     Auth.logout();
+  };
+  const closeAuthModal = () => {
+    setAuthMode('');
+    if (currentPage === '/login' || currentPage === '/signup') navigate('/', { replace: true });
   };
 
   return (
@@ -96,18 +112,19 @@ export default function Navbar() {
           </>
         ) : (
           <>
-          <Button color="inherit" component={Link} to="/login"
-            sx={navLinkStyles('/login')}>
+          <Button color="inherit" onClick={() => setAuthMode('login')}
+            sx={navLinkStyles('')}>
             Login
           </Button>
-          <Button color="inherit" component={Link} to="/signup"
-            sx={navLinkStyles('/signup')}>
+          <Button color="inherit" onClick={() => setAuthMode('signup')}
+            sx={navLinkStyles('')}>
             Signup
           </Button>
           </>
         )}          
         </Box>
       </Toolbar>
+      <AuthModal mode={authMode} onModeChange={setAuthMode} onClose={closeAuthModal} />
     </AppBar>
   );
 }
