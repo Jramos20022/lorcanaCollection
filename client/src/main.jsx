@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import ErrorPage from "./pages/ErrorPage";
 import Cards from "./pages/Cards";
 import Builder from "./pages/Builder";
+import Collection from "./pages/Collection";
 
 
 
@@ -46,6 +47,10 @@ const router = createBrowserRouter([
       {
         path: "/builder",
         element: <Builder />
+      },
+      {
+        path: "/collection",
+        element: <Collection />
       },
     ],
   },

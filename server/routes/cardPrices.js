@@ -55,6 +55,20 @@ const matchesProductId = (item, productId) => (
   !productId || getProductId(item) === String(productId)
 );
 
+const isFoilPrinting = (printing) => normalizeText(printing) === 'foil';
+
+const hasFoilPrice = (item) => readValue(item, [
+  'foilMarketPrice',
+  'foil_market_price',
+  'prices.foil.marketPrice',
+  'pricing.foil.marketPrice',
+  'pricePoints.foil.marketPrice',
+]) !== null;
+
+const matchesRequiredPrinting = (item, printing) => (
+  !isFoilPrinting(printing) || getVariantText(item).includes('foil') || hasFoilPrice(item)
+);
+
 const scoreResult = (item, card) => {
   const title = normalizeText(readValue(item, ['productName', 'name', 'title']));
   const setName = normalizeText(readValue(item, ['setName', 'groupName', 'set.name', 'set']));
@@ -72,20 +86,49 @@ const scoreResult = (item, card) => {
   else if (requestedSet && setName.includes(requestedSet)) score += 2;
   if (card.number && title.includes(normalizeText(card.number))) score += 1;
   if (requestedRarity && variantText.includes(requestedRarity)) score += 10;
+  if (isFoilPrinting(card.printing) && variantText.includes('foil')) score += 12;
+  if (card.printing === 'standard' && !variantText.includes('foil')) score += 3;
 
   return score;
 };
 
-const normalizePrice = (item) => ({
-  marketPrice: toNumber(readValue(item, [
+const normalizePrice = (item, printing) => {
+  const foilMarketPaths = [
+    'foilMarketPrice',
+    'foil_market_price',
+    'prices.foil.marketPrice',
+    'pricing.foil.marketPrice',
+    'pricePoints.foil.marketPrice',
+  ];
+  const standardMarketPaths = [
+    'normalMarketPrice',
+    'standardMarketPrice',
+    'prices.normal.marketPrice',
+    'prices.standard.marketPrice',
+    'pricing.normal.marketPrice',
+  ];
+  const foilLowestPaths = [
+    'foilLowestPrice',
+    'foilLowPrice',
+    'prices.foil.lowPrice',
+    'pricing.foil.lowPrice',
+  ];
+  const standardLowestPaths = [
+    'normalLowestPrice',
+    'standardLowestPrice',
+    'prices.normal.lowPrice',
+    'prices.standard.lowPrice',
+    'pricing.normal.lowPrice',
+  ];
+  const marketPaths = [
     'marketPrice',
     'market_price',
     'prices.marketPrice',
     'pricing.marketPrice',
     'pricePoints.marketPrice',
     'priceData.marketPrice',
-  ])),
-  lowestPrice: toNumber(readValue(item, [
+  ];
+  const lowestPaths = [
     'lowestPrice',
     'lowPrice',
     'lowestListingPrice',
@@ -93,11 +136,22 @@ const normalizePrice = (item) => ({
     'pricing.lowPrice',
     'pricePoints.lowPrice',
     'priceData.lowPrice',
-  ])),
-  productUrl: readValue(item, ['productUrl', 'url', 'tcgplayerUrl', 'link']),
-  productName: readValue(item, ['productName', 'name', 'title']),
-  setName: readValue(item, ['setName', 'groupName', 'set.name', 'set']),
-});
+  ];
+
+  return {
+    marketPrice: toNumber(readValue(item, [
+      ...(isFoilPrinting(printing) ? foilMarketPaths : standardMarketPaths),
+      ...marketPaths,
+    ])),
+    lowestPrice: toNumber(readValue(item, [
+      ...(isFoilPrinting(printing) ? foilLowestPaths : standardLowestPaths),
+      ...lowestPaths,
+    ])),
+    productUrl: readValue(item, ['productUrl', 'url', 'tcgplayerUrl', 'link']),
+    productName: readValue(item, ['productName', 'name', 'title']),
+    setName: readValue(item, ['setName', 'groupName', 'set.name', 'set']),
+  };
+};
 
 router.get('/', async (req, res) => {
   const name = String(req.query.name || '').trim();
@@ -105,6 +159,7 @@ router.get('/', async (req, res) => {
   const number = String(req.query.number || '').trim();
   const rarity = String(req.query.rarity || '').trim();
   const tcgplayerId = String(req.query.tcgplayerId || '').trim();
+  const printing = String(req.query.printing || 'standard').trim().toLowerCase();
 
   if (!name) return res.status(400).json({ message: 'A card name is required.' });
   if (!process.env.APIFY_TOKEN) {
@@ -114,14 +169,14 @@ router.get('/', async (req, res) => {
     });
   }
 
-  const cacheKey = `${name}|${set}|${number}|${rarity}|${tcgplayerId}`.toLowerCase();
+  const cacheKey = `${name}|${set}|${number}|${rarity}|${tcgplayerId}|${printing}`.toLowerCase();
   const cachedPrice = priceCache.get(cacheKey);
   if (cachedPrice && Date.now() - cachedPrice.createdAt < CACHE_DURATION) {
     return res.json(cachedPrice.data);
   }
 
   try {
-    const query = ['Disney Lorcana', name, set, rarity, number ? `#${number}` : '']
+    const query = ['Disney Lorcana', name, set, rarity, number ? `#${number}` : '', printing === 'foil' ? 'Foil' : 'Normal']
       .filter(Boolean)
       .join(' ');
     const actorUrl = new URL(`https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items`);
@@ -144,12 +199,14 @@ router.get('/', async (req, res) => {
 
     const items = await response.json();
     const matchingItems = items.filter((item) => (
-      matchesRequiredVariant(item, rarity) && matchesProductId(item, tcgplayerId)
+      matchesRequiredVariant(item, rarity)
+        && matchesRequiredPrinting(item, printing)
+        && matchesProductId(item, tcgplayerId)
     ));
     const bestMatch = [...matchingItems]
       .sort((firstItem, secondItem) => (
-        scoreResult(secondItem, { name, set, number, rarity, tcgplayerId })
-          - scoreResult(firstItem, { name, set, number, rarity, tcgplayerId })
+        scoreResult(secondItem, { name, set, number, rarity, tcgplayerId, printing })
+          - scoreResult(firstItem, { name, set, number, rarity, tcgplayerId, printing })
       ))[0];
 
     if (!bestMatch) {
@@ -157,7 +214,7 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ message: `No${variantLabel} TCGplayer listing was found.` });
     }
 
-    const price = normalizePrice(bestMatch);
+    const price = normalizePrice(bestMatch, printing);
     if (price.marketPrice === null && price.lowestPrice === null) {
       return res.status(404).json({ message: 'No current price was found for this card.' });
     }

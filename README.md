@@ -46,6 +46,14 @@ The Inkcaster helps Lorcana players explore the card catalog, compare special pr
 - Name, save, edit, and delete decks
 - View saved decks from an authenticated profile
 
+### Personal collection
+
+- Add exact standard, special-rarity, and promotional printings from the card archive
+- Search only within cards already saved to a private account collection
+- Track unlimited quantities of each exact printing
+- Increase, decrease, or remove owned cards from one page
+- See unique-card and total-copy counts at a glance
+
 ### Accounts
 
 - Email and password registration and login
@@ -55,15 +63,15 @@ The Inkcaster helps Lorcana players explore the card catalog, compare special pr
 
 ## Tech Stack
 
-| Area | Technology |
-| --- | --- |
-| Client | React 18, Vite, React Router, Material UI |
-| Data client | Apollo Client, GraphQL |
-| Server | Node.js 20, Express, Apollo Server |
-| Database | MongoDB, Mongoose |
-| Authentication | JWT, bcrypt |
-| Card data | Lorcast and Lorcana API |
-| Pricing | Apify TCGplayer Data Scraper |
+| Area           | Technology                                |
+| -------------- | ----------------------------------------- |
+| Client         | React 18, Vite, React Router, Material UI |
+| Data client    | Apollo Client, GraphQL                    |
+| Server         | Node.js 20, Express, Apollo Server        |
+| Database       | MongoDB, Mongoose                         |
+| Authentication | JWT, bcrypt                               |
+| Card data      | Lorcast and Lorcana API                   |
+| Pricing        | Apify TCGplayer Data Scraper              |
 
 ## Local Setup
 
@@ -117,13 +125,13 @@ Open [http://localhost:3000](http://localhost:3000). The API runs at `http://loc
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `npm run develop` | Run the Vite client and Node server together |
-| `npm run build` | Create the production client bundle |
-| `npm start` | Start the Node server |
-| `cd client && npm run lint` | Check client source with ESLint |
-| `cd client && npm run preview` | Preview a production client build |
+| Command                        | Purpose                                      |
+| ------------------------------ | -------------------------------------------- |
+| `npm run develop`              | Run the Vite client and Node server together |
+| `npm run build`                | Create the production client bundle          |
+| `npm start`                    | Start the Node server                        |
+| `cd client && npm run lint`    | Check client source with ESLint              |
+| `cd client && npm run preview` | Preview a production client build            |
 
 ## Project Structure
 
@@ -159,8 +167,6 @@ Special and promotional cards are matched using rarity information and exact TCG
 ## Contributors
 
 - [Justin Ramos](https://github.com/Jramos20022)
-- [Nicholas Poulson](https://github.com/42Salokin)
-- [Emanuel Velazquez](https://github.com/Velazqe)
 
 ## License
 
