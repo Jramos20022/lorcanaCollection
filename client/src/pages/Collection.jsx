@@ -21,6 +21,7 @@ import {
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import MonetizationOnRoundedIcon from '@mui/icons-material/MonetizationOnRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import Auth from '../utils/auth';
@@ -46,6 +47,10 @@ const SET_CHECKLISTS = [
 
 const normalizeQuantity = (value) => Math.max(0, Number.parseInt(value, 10) || 0);
 const normalizeSetName = (value = '') => value.trim().toLowerCase();
+const formatCurrency = (value) => new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+}).format(value);
 
 const setAliasLookup = SET_CHECKLISTS.reduce((lookup, set) => {
   [set.name, ...set.aliases].forEach((alias) => lookup.set(normalizeSetName(alias), set.name));
@@ -65,6 +70,22 @@ const getSetCardKey = (card) => {
   const number = String(card.card_num || '').trim();
   if (number) return number;
   return card.unique_id || card.name;
+};
+
+const getDisplayPrice = (price) => price?.marketPrice ?? price?.lowestPrice ?? null;
+
+const loadCollectionCardPrice = async (card, printing, signal) => {
+  const searchParams = new URLSearchParams({
+    name: card.name || '',
+    set: card.set_name || '',
+    number: String(card.card_num || ''),
+    rarity: card.rarity || '',
+    printing,
+  });
+  const response = await fetch(`/api/card-price?${searchParams}`, { signal });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Price unavailable.');
+  return data;
 };
 
 const escapeXml = (value) => String(value ?? '')
@@ -327,7 +348,16 @@ const Collection = () => {
   const [modalFoilPreview, setModalFoilPreview] = useState(false);
   const [savingPrinting, setSavingPrinting] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [cardPrices, setCardPrices] = useState({ standard: null, foil: null });
+  const [loadingCardPrices, setLoadingCardPrices] = useState(false);
+  const [cardPriceError, setCardPriceError] = useState('');
+  const [collectionValue, setCollectionValue] = useState(null);
+  const [pricedPrintings, setPricedPrintings] = useState(0);
+  const [totalPrintings, setTotalPrintings] = useState(0);
+  const [loadingCollectionValue, setLoadingCollectionValue] = useState(false);
+  const [collectionValueError, setCollectionValueError] = useState('');
   const quantitySaveTimers = useRef({});
+  const priceCache = useRef(new Map());
   const { data, loading, error, refetch } = useQuery(QUERY_MY_COLLECTION, {
     skip: !Auth.loggedIn(),
   });
@@ -428,6 +458,42 @@ const Collection = () => {
     Object.values(quantitySaveTimers.current).forEach(clearTimeout);
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    if (!selectedCard) {
+      setCardPrices({ standard: null, foil: null });
+      setCardPriceError('');
+      setLoadingCardPrices(false);
+      return () => controller.abort();
+    }
+
+    const loadPrices = async () => {
+      setLoadingCardPrices(true);
+      setCardPriceError('');
+      setCardPrices({ standard: null, foil: null });
+
+      const results = await Promise.allSettled([
+        loadCollectionCardPrice(selectedCard, 'standard', controller.signal),
+        loadCollectionCardPrice(selectedCard, 'foil', controller.signal),
+      ]);
+
+      if (controller.signal.aborted) return;
+
+      setCardPrices({
+        standard: results[0].status === 'fulfilled' ? results[0].value : null,
+        foil: results[1].status === 'fulfilled' ? results[1].value : null,
+      });
+      if (results.every((result) => result.status === 'rejected')) {
+        setCardPriceError(results[0].reason?.message || 'Unable to load pricing.');
+      }
+      setLoadingCardPrices(false);
+    };
+
+    loadPrices();
+    return () => controller.abort();
+  }, [selectedCard]);
+
   if (!Auth.loggedIn()) return <Navigate to="/login" replace />;
 
   const openCard = (card) => {
@@ -480,6 +546,63 @@ const Collection = () => {
     }
   };
 
+  const calculateCollectionValue = async () => {
+    const priceRequests = collection.flatMap((card) => ([
+      card.standard_count > 0 ? { card, printing: 'standard', quantity: card.standard_count } : null,
+      card.foil_count > 0 ? { card, printing: 'foil', quantity: card.foil_count } : null,
+    ].filter(Boolean)));
+
+    setTotalPrintings(priceRequests.length);
+    setPricedPrintings(0);
+    setCollectionValue(null);
+    setCollectionValueError('');
+
+    if (priceRequests.length === 0) {
+      setCollectionValue(0);
+      return;
+    }
+
+    setLoadingCollectionValue(true);
+    let nextRequestIndex = 0;
+    let pricedCount = 0;
+    const totals = [];
+
+    const loadNextPrice = async () => {
+      while (nextRequestIndex < priceRequests.length) {
+        const request = priceRequests[nextRequestIndex];
+        nextRequestIndex += 1;
+        const cacheKey = `${request.card.unique_id}:${request.printing}`;
+
+        try {
+          let unitPrice = priceCache.current.get(cacheKey);
+          if (unitPrice === undefined) {
+            const price = await loadCollectionCardPrice(request.card, request.printing);
+            unitPrice = getDisplayPrice(price);
+            priceCache.current.set(cacheKey, unitPrice);
+          }
+
+          if (unitPrice !== null) {
+            pricedCount += 1;
+            totals.push(unitPrice * request.quantity);
+            setPricedPrintings(pricedCount);
+          }
+        } catch {
+          totals.push(0);
+        }
+      }
+    };
+
+    try {
+      await Promise.all(Array.from({ length: Math.min(3, priceRequests.length) }, loadNextPrice));
+      setCollectionValue(totals.reduce((total, value) => total + value, 0));
+      if (pricedCount === 0) setCollectionValueError('No collection prices were found.');
+    } catch (requestError) {
+      setCollectionValueError(requestError.message || 'Unable to calculate collection value.');
+    } finally {
+      setLoadingCollectionValue(false);
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2.5, md: 4 } }}>
       <Stack
@@ -494,6 +617,31 @@ const Collection = () => {
           <Typography color="text.secondary">
             {collection.length} unique cards · {totalCards} copies · {standardCards} standard · {foilCards} foil
           </Typography>
+          <Stack direction="row" alignItems="center" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              size="small"
+              startIcon={loadingCollectionValue ? <CircularProgress size={16} color="inherit" /> : <MonetizationOnRoundedIcon />}
+              disabled={loading || loadingCollectionValue || collection.length === 0}
+              onClick={calculateCollectionValue}
+            >
+              {loadingCollectionValue ? 'Calculating...' : 'Calculate Value'}
+            </Button>
+            {collectionValue !== null && (
+              <Typography sx={{ color: 'secondary.light', fontWeight: 900 }}>
+                Estimated value: {formatCurrency(collectionValue)}
+              </Typography>
+            )}
+            {totalPrintings > 0 && pricedPrintings < totalPrintings && collectionValue !== null && (
+              <Typography variant="caption" color="text.secondary">
+                {pricedPrintings} of {totalPrintings} printings priced
+              </Typography>
+            )}
+            {collectionValueError && (
+              <Typography variant="caption" color="error.main">{collectionValueError}</Typography>
+            )}
+          </Stack>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           <Button
@@ -733,6 +881,47 @@ const Collection = () => {
                   <FoilCardImage image={selectedCard.image} alt={selectedCard.name} active={modalFoilPreview} />
                 </Box>
               </Box>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1,
+                  bgcolor: 'rgba(216, 165, 43, 0.08)',
+                  border: '1px solid',
+                  borderColor: 'rgba(216, 165, 43, 0.28)',
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
+                  <MonetizationOnRoundedIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
+                  <Typography fontWeight={900} color="secondary.light">TCGplayer Value</Typography>
+                </Stack>
+                {loadingCardPrices && (
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <CircularProgress size={16} color="secondary" />
+                    <Typography variant="body2" color="text.secondary">Loading prices...</Typography>
+                  </Stack>
+                )}
+                {!loadingCardPrices && cardPriceError && (
+                  <Typography variant="body2" color="text.secondary">{cardPriceError}</Typography>
+                )}
+                {!loadingCardPrices && !cardPriceError && (
+                  <Stack spacing={0.5}>
+                    {[
+                      ['Standard', cardPrices.standard],
+                      ['Foil', cardPrices.foil],
+                    ].map(([label, price]) => {
+                      const value = getDisplayPrice(price);
+                      return (
+                        <Stack key={label} direction="row" justifyContent="space-between" spacing={1}>
+                          <Typography variant="body2" color="text.secondary">{label}</Typography>
+                          <Typography variant="body2" fontWeight={900}>
+                            {value === null ? 'Unavailable' : formatCurrency(value)}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                )}
+              </Paper>
               <QuantityEditor
                 label="Standard"
                 value={standardQuantity}
