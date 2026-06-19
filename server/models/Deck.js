@@ -62,7 +62,7 @@ const deckSchema = new Schema({
         type: String
       },
       card_num: {
-        type: Number
+        type: String
       },
       body_text: {
         type: String

@@ -82,7 +82,7 @@ const toDeckCardInput = (card) => ({
   rarity: stringValue(card.rarity),
   flavor_text: stringValue(card.flavor_text),
   unique_id: stringValue(card.unique_id || cardKey(card)),
-  card_num: integerValue(card.card_num),
+  card_num: stringValue(card.card_num),
   body_text: stringValue(card.body_text),
   willpower: integerValue(card.willpower),
   card_variants: stringValue(card.card_variants),

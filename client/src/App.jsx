@@ -10,10 +10,11 @@ import { Outlet } from 'react-router-dom';
 import { Container, Box } from '@mui/material';
 
 import Header from './components/Header';
+import { graphqlUri } from './utils/api';
 
 // Construct our main GraphQL API endpoint
 const httpLink = createHttpLink({
-  uri: '/graphql',
+  uri: graphqlUri,
 });
 
 // Construct request middleware that will attach the JWT token to every request as an `authorization` header
@@ -59,5 +60,4 @@ function App() {
 }
 
 export default App;
-
 

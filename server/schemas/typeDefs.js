@@ -32,7 +32,7 @@ const typeDefs = `
   rarity: String
   flavor_text: String
   unique_id: String
-  card_num: Int!
+  card_num: String!
   body_text: String
   willpower: Int
   card_variants: String
@@ -62,7 +62,7 @@ input CardInput {
   rarity: String
   flavor_text: String
   unique_id: String
-  card_num: Int!
+  card_num: String!
   body_text: String
   willpower: Int
   card_variants: String

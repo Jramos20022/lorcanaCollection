@@ -30,13 +30,9 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
-import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import Auth from '../../utils/auth';
-import {
-  ADD_COLLECTION_CARD,
-  UPDATE_COLLECTION_CARD,
-} from '../../utils/mutations';
+import { UPDATE_COLLECTION_CARD } from '../../utils/mutations';
 import { QUERY_MY_COLLECTION } from '../../utils/queries';
 import FoilCardImage from '../FoilCardImage';
 
@@ -80,6 +76,8 @@ const formatRarity = (rarity = '') => rarity
   .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
   .join(' ');
 
+const normalizeQuantity = (value) => Math.max(0, Number.parseInt(value, 10) || 0);
+
 const normalizeLorcastCard = (card) => ({
   Artist: card.illustrators?.join(', ') || '',
   Set_Name: card.set?.name || '',
@@ -95,7 +93,7 @@ const normalizeLorcastCard = (card) => ({
   Rarity: formatRarity(card.rarity),
   Flavor_Text: card.flavor_text || '',
   Unique_ID: card.id,
-  Card_Num: Number(card.collector_number) || card.collector_number,
+  Card_Num: String(card.collector_number || ''),
   Body_Text: card.text || '',
   Willpower: card.willpower,
   Strength: card.strength,
@@ -115,7 +113,7 @@ const toCollectionCardInput = (card) => ({
   type: card.Type || 'Card',
   rarity: card.Rarity || '',
   unique_id: card.Unique_ID || `${card.Set_ID}-${card.Card_Num}-${card.Name}`,
-  card_num: Number.parseInt(card.Card_Num, 10) || 0,
+  card_num: String(card.Card_Num || ''),
   set_id: card.Set_ID || '',
   count: 0,
   standard_count: 0,
@@ -131,49 +129,6 @@ const FilterSection = ({ label, children }) => (
       {label}
     </Typography>
     <Box sx={{ mt: 1 }}>{children}</Box>
-  </Box>
-);
-
-const PrintingCounter = ({ cardName, label, quantity, saving, onChange, onPreview }) => (
-  <Box
-    onMouseEnter={() => onPreview?.(true)}
-    onMouseLeave={() => onPreview?.(false)}
-    onFocusCapture={() => onPreview?.(true)}
-    onBlurCapture={() => onPreview?.(false)}
-    sx={{
-      display: 'grid',
-      gridTemplateColumns: 'minmax(0, 1fr) 28px 28px 28px',
-      alignItems: 'center',
-      minHeight: 34,
-      px: 0.5,
-      borderRadius: 1,
-      bgcolor: label === 'Foil' ? 'rgba(119, 78, 178, 0.14)' : 'transparent',
-    }}
-  >
-    <Typography variant="caption" sx={{ pl: 0.25, fontWeight: 800, color: label === 'Foil' ? 'secondary.light' : 'text.secondary' }}>
-      {label}
-    </Typography>
-    <IconButton
-      size="small"
-      aria-label={`Remove one ${label.toLowerCase()} ${cardName}`}
-      disabled={quantity === 0 || saving}
-      onClick={(event) => onChange(event, -1)}
-      sx={{ width: 28, height: 28 }}
-    >
-      <RemoveRoundedIcon sx={{ fontSize: 18 }} />
-    </IconButton>
-    <Typography sx={{ textAlign: 'center', fontSize: '0.78rem', fontWeight: 900, lineHeight: 1 }}>
-      {saving ? <CircularProgress size={14} color="secondary" /> : quantity}
-    </Typography>
-    <IconButton
-      size="small"
-      aria-label={`Add one ${label.toLowerCase()} ${cardName}`}
-      disabled={saving}
-      onClick={(event) => onChange(event, 1)}
-      sx={{ width: 28, height: 28 }}
-    >
-      <AddRoundedIcon sx={{ fontSize: 18 }} />
-    </IconButton>
   </Box>
 );
 
@@ -197,14 +152,11 @@ const MainCards = () => {
   const [sortBy, setSortBy] = useState('set');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
-  const [cardPrice, setCardPrice] = useState(null);
-  const [cardPriceError, setCardPriceError] = useState('');
-  const [loadingCardPrice, setLoadingCardPrice] = useState(false);
+  const [standardAddQuantity, setStandardAddQuantity] = useState(0);
+  const [foilAddQuantity, setFoilAddQuantity] = useState(0);
   const [addingToCollection, setAddingToCollection] = useState(false);
-  const [quickSavingId, setQuickSavingId] = useState('');
   const [foilPreviewId, setFoilPreviewId] = useState('');
   const [collectionNotice, setCollectionNotice] = useState(null);
-  const [addCollectionCard] = useMutation(ADD_COLLECTION_CARD);
   const [updateCollectionCard] = useMutation(UPDATE_COLLECTION_CARD);
   const { data: collectionData, refetch: refetchCollection } = useQuery(QUERY_MY_COLLECTION, {
     skip: !Auth.loggedIn(),
@@ -219,85 +171,38 @@ const MainCards = () => {
     [collectionData]
   );
 
-  const handleAddToCollection = async (printing) => {
+  useEffect(() => {
+    if (selectedCard) {
+      const cardInput = toCollectionCardInput(selectedCard);
+      const ownedCard = collectionById.get(cardInput.unique_id);
+      setStandardAddQuantity(ownedCard?.standard_count || 0);
+      setFoilAddQuantity(ownedCard?.foil_count || 0);
+    }
+  }, [collectionById, selectedCard]);
+
+  const saveCollectionQuantity = async (printing, rawQuantity) => {
     if (!selectedCard) return;
 
+    const quantity = normalizeQuantity(rawQuantity);
+    const cardInput = toCollectionCardInput(selectedCard);
     setAddingToCollection(true);
     try {
-      await addCollectionCard({ variables: { card: toCollectionCardInput(selectedCard), printing } });
+      await updateCollectionCard({
+        variables: {
+          card: cardInput,
+          printing,
+          quantity,
+        },
+      });
       await refetchCollection();
       const finish = printing === 'foil' ? 'Foil' : 'Standard';
-      setCollectionNotice({ severity: 'success', message: `${finish} ${selectedCard.Name} added to your collection.` });
+      setCollectionNotice({ severity: 'success', message: `${finish} quantity saved for ${selectedCard.Name}.` });
     } catch (requestError) {
       setCollectionNotice({ severity: 'error', message: requestError.message });
     } finally {
       setAddingToCollection(false);
     }
   };
-
-  const handleQuickCollectionChange = async (event, card, printing, change) => {
-    event.stopPropagation();
-    const cardInput = toCollectionCardInput(card);
-    const ownedCard = collectionById.get(cardInput.unique_id);
-    const countField = `${printing}_count`;
-    const currentCount = ownedCard?.[countField] || 0;
-    const nextCount = currentCount + change;
-
-    if (nextCount < 0) return;
-
-    setQuickSavingId(`${cardInput.unique_id}:${printing}`);
-    try {
-      if (change > 0) {
-        await addCollectionCard({ variables: { card: cardInput, printing } });
-      } else {
-        await updateCollectionCard({ variables: { card: cardInput, printing, quantity: nextCount } });
-      }
-      await refetchCollection();
-    } catch (requestError) {
-      setCollectionNotice({ severity: 'error', message: requestError.message });
-    } finally {
-      setQuickSavingId('');
-    }
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    if (!selectedCard) {
-      setCardPrice(null);
-      setCardPriceError('');
-      setLoadingCardPrice(false);
-      return () => controller.abort();
-    }
-
-    const loadCardPrice = async () => {
-      setCardPrice(null);
-      setCardPriceError('');
-      setLoadingCardPrice(true);
-
-      try {
-        const searchParams = new URLSearchParams({
-          name: selectedCard.Name,
-          set: selectedCard.Set_Name || '',
-          number: String(selectedCard.Card_Num || ''),
-          rarity: selectedCard.Rarity || '',
-          tcgplayerId: String(selectedCard.TCGplayer_ID || ''),
-        });
-        const response = await fetch(`/api/card-price?${searchParams}`, { signal: controller.signal });
-        const data = await response.json();
-
-        if (!response.ok) throw new Error(data.message || 'Unable to load the current card value.');
-        setCardPrice(data);
-      } catch (requestError) {
-        if (requestError.name !== 'AbortError') setCardPriceError(requestError.message);
-      } finally {
-        if (!controller.signal.aborted) setLoadingCardPrice(false);
-      }
-    };
-
-    loadCardPrice();
-    return () => controller.abort();
-  }, [selectedCard]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -810,6 +715,7 @@ const MainCards = () => {
               const ownedCard = collectionById.get(cardId);
               const standardCount = ownedCard?.standard_count || 0;
               const foilCount = ownedCard?.foil_count || 0;
+              const totalOwned = standardCount + foilCount;
 
               return (
                 <Card
@@ -824,35 +730,75 @@ const MainCards = () => {
                     },
                   }}
                 >
-                  <FoilCardImage
-                    image={card.Image}
-                    alt={card.Name}
-                    loading="lazy"
+                  <Box
+                    onMouseEnter={() => foilCount > 0 && setFoilPreviewId(cardId)}
+                    onMouseLeave={() => setFoilPreviewId('')}
                     onClick={() => setSelectedCard(card)}
-                    active={foilPreviewId === cardId}
-                  />
-                  {Auth.loggedIn() && (
-                    <Stack
-                      spacing={0.25}
-                      sx={{ minHeight: 72, p: 0.5, bgcolor: 'rgba(13, 13, 31, 0.94)' }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedCard(card);
+                      }
+                    }}
+                    aria-label={`View ${card.Name}`}
+                    sx={{ position: 'relative', cursor: 'pointer' }}
+                  >
+                    <FoilCardImage
+                      image={card.Image}
+                      alt={card.Name}
+                      loading="lazy"
+                      active={foilPreviewId === cardId}
+                    />
+                    {Auth.loggedIn() && totalOwned > 0 && (
+                      <Chip
+                        label={`x${totalOwned}`}
+                        color="secondary"
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          fontWeight: 900,
+                          boxShadow: '0 8px 18px rgba(0, 0, 0, 0.45)',
+                        }}
+                      />
+                    )}
+                    {Auth.loggedIn() && foilCount > 0 && (
+                      <Chip
+                        label={`${foilCount} foil`}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          left: 8,
+                          bottom: 8,
+                          color: 'secondary.light',
+                          bgcolor: 'rgba(13, 13, 31, 0.82)',
+                          border: '1px solid rgba(216, 165, 43, 0.45)',
+                          fontWeight: 800,
+                        }}
+                      />
+                    )}
+                  </Box>
+                  <Stack
+                    spacing={0.5}
+                    sx={{
+                      minHeight: 58,
+                      p: 1,
+                      bgcolor: 'rgba(13, 13, 31, 0.94)',
+                    }}
+                  >
+                    <Typography
+                      fontWeight={800}
+                      sx={{ fontSize: '0.86rem', lineHeight: 1.2 }}
                     >
-                      <PrintingCounter
-                        cardName={card.Name}
-                        label="Standard"
-                        quantity={standardCount}
-                        saving={quickSavingId === `${cardId}:standard`}
-                        onChange={(event, change) => handleQuickCollectionChange(event, card, 'standard', change)}
-                      />
-                      <PrintingCounter
-                        cardName={card.Name}
-                        label="Foil"
-                        quantity={foilCount}
-                        saving={quickSavingId === `${cardId}:foil`}
-                        onChange={(event, change) => handleQuickCollectionChange(event, card, 'foil', change)}
-                        onPreview={(active) => setFoilPreviewId(active ? cardId : '')}
-                      />
-                    </Stack>
-                  )}
+                      {card.Name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {card.Set_Name} · #{card.Card_Num}
+                    </Typography>
+                  </Stack>
                 </Card>
               );
             })}
@@ -950,59 +896,94 @@ const MainCards = () => {
                   {selectedCard.Body_Text || selectedCard.Flavor_Text || 'No additional card text.'}
                 </Typography>
                 {Auth.loggedIn() && (
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <AddRoundedIcon />}
-                      disabled={addingToCollection}
-                      onClick={() => handleAddToCollection('standard')}
+                  <Stack spacing={1} sx={{ mt: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr 104px', sm: '1fr 112px' },
+                        gap: 1,
+                        alignItems: 'center',
+                      }}
                     >
-                      Add Standard
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <AddRoundedIcon />}
-                      disabled={addingToCollection}
-                      onClick={() => handleAddToCollection('foil')}
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />}
+                        disabled={addingToCollection}
+                        onClick={() => saveCollectionQuantity('standard', standardAddQuantity)}
+                        sx={{ minHeight: 48 }}
+                      >
+                        Save Standard
+                      </Button>
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Owned"
+                        value={standardAddQuantity}
+                        disabled={addingToCollection}
+                        onChange={(event) => {
+                          const nextValue = event.target.value === '' ? '' : normalizeQuantity(event.target.value);
+                          setStandardAddQuantity(nextValue);
+                        }}
+                        onBlur={() => {
+                          const nextValue = normalizeQuantity(standardAddQuantity);
+                          setStandardAddQuantity(nextValue);
+                          saveCollectionQuantity('standard', nextValue);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            saveCollectionQuantity('standard', standardAddQuantity);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        inputProps={{ min: 0, inputMode: 'numeric', 'aria-label': 'Standard quantity owned' }}
+                        sx={{ '& input': { textAlign: 'center', fontWeight: 900 } }}
+                      />
+                    </Box>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr 104px', sm: '1fr 112px' },
+                        gap: 1,
+                        alignItems: 'center',
+                      }}
                     >
-                      Add Foil
-                    </Button>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={addingToCollection ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />}
+                        disabled={addingToCollection}
+                        onClick={() => saveCollectionQuantity('foil', foilAddQuantity)}
+                        sx={{ minHeight: 48 }}
+                      >
+                        Save Foil
+                      </Button>
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Owned"
+                        value={foilAddQuantity}
+                        disabled={addingToCollection}
+                        onChange={(event) => {
+                          const nextValue = event.target.value === '' ? '' : normalizeQuantity(event.target.value);
+                          setFoilAddQuantity(nextValue);
+                        }}
+                        onBlur={() => {
+                          const nextValue = normalizeQuantity(foilAddQuantity);
+                          setFoilAddQuantity(nextValue);
+                          saveCollectionQuantity('foil', nextValue);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            saveCollectionQuantity('foil', foilAddQuantity);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        inputProps={{ min: 0, inputMode: 'numeric', 'aria-label': 'Foil quantity owned' }}
+                        sx={{ '& input': { textAlign: 'center', fontWeight: 900 } }}
+                      />
+                    </Box>
                   </Stack>
-                )}
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="overline" sx={{ color: 'secondary.light', fontWeight: 900 }}>
-                  TCGplayer value
-                </Typography>
-                {loadingCardPrice && (
-                  <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mt: 1 }}>
-                    <CircularProgress size={20} color="secondary" />
-                    <Typography color="text.secondary">Checking current value...</Typography>
-                  </Stack>
-                )}
-                {!loadingCardPrice && cardPrice && (
-                  <Stack direction="row" flexWrap="wrap" gap={2} sx={{ mt: 1 }}>
-                    {cardPrice.marketPrice !== null && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Market price</Typography>
-                        <Typography variant="h5" color="secondary.light">
-                          ${cardPrice.marketPrice.toFixed(2)}
-                        </Typography>
-                      </Box>
-                    )}
-                    {cardPrice.lowestPrice !== null && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Lowest listing</Typography>
-                        <Typography variant="h5">${cardPrice.lowestPrice.toFixed(2)}</Typography>
-                      </Box>
-                    )}
-                  </Stack>
-                )}
-                {!loadingCardPrice && cardPriceError && (
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    {cardPriceError}
-                  </Typography>
                 )}
               </Grid>
             </Grid>

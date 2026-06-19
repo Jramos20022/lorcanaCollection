@@ -26,6 +26,18 @@ const getCollectionCardDetails = (card) => {
   return details;
 };
 
+const sanitizeCardInput = (card) => ({
+  ...card,
+  image: card.image || "",
+  name: card.name || "Unknown Card",
+  type: card.type || "Card",
+  unique_id: card.unique_id || `${card.set_id || "set"}-${card.card_num || "number"}-${card.name || "card"}`,
+  card_num: String(card.card_num || ""),
+  count: Math.max(0, Number(card.count) || 0),
+  standard_count: Math.max(0, Number(card.standard_count) || 0),
+  foil_count: Math.max(0, Number(card.foil_count) || 0),
+});
+
 const resolvers = {
   Query: {
     users: async () => {
@@ -163,11 +175,12 @@ const resolvers = {
       const user = await User.findById(context.user._id);
       if (!user) throw AuthenticationError;
 
+      const cardDetails = sanitizeCardInput(card);
       const printingField = getPrintingField(printing);
-      const existingCard = user.cardCollection.find((item) => item.unique_id === card.unique_id);
+      const existingCard = user.cardCollection.find((item) => item.unique_id === cardDetails.unique_id);
       if (existingCard) {
         migrateCollectionCard(existingCard);
-        existingCard.set({ ...getCollectionCardDetails(card), printing_counts_migrated: true });
+        existingCard.set({ ...getCollectionCardDetails(cardDetails), printing_counts_migrated: true });
         existingCard[printingField] = Math.max(0, quantity);
         migrateCollectionCard(existingCard);
       } else {
@@ -176,7 +189,7 @@ const resolvers = {
           foil_count: printing === "foil" ? Math.max(0, quantity) : 0,
         };
         user.cardCollection.push({
-          ...card,
+          ...cardDetails,
           ...printingCounts,
           count: printingCounts.standard_count + printingCounts.foil_count,
           printing_counts_migrated: true,
@@ -194,16 +207,17 @@ const resolvers = {
       const user = await User.findById(context.user._id);
       if (!user) throw AuthenticationError;
 
+      const cardDetails = sanitizeCardInput(card);
       const printingField = getPrintingField(printing);
-      const existingCard = user.cardCollection.find((item) => item.unique_id === card.unique_id);
+      const existingCard = user.cardCollection.find((item) => item.unique_id === cardDetails.unique_id);
       if (existingCard) {
         migrateCollectionCard(existingCard);
-        existingCard.set({ ...getCollectionCardDetails(card), printing_counts_migrated: true });
+        existingCard.set({ ...getCollectionCardDetails(cardDetails), printing_counts_migrated: true });
         existingCard[printingField] += 1;
         migrateCollectionCard(existingCard);
       } else {
         user.cardCollection.push({
-          ...card,
+          ...cardDetails,
           count: 1,
           standard_count: printing === "standard" ? 1 : 0,
           foil_count: printing === "foil" ? 1 : 0,
