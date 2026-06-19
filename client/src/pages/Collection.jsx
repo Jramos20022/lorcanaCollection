@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import {
   Alert,
   Box,
+  Button,
   Card,
   Chip,
   CircularProgress,
@@ -18,11 +19,12 @@ import {
   Typography,
 } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import Auth from '../utils/auth';
-import { QUERY_MY_COLLECTION } from '../utils/queries';
+import { QUERY_MY_COLLECTION, QUERY_MY_DECKS } from '../utils/queries';
 import { UPDATE_COLLECTION_CARD } from '../utils/mutations';
 import FoilCardImage from '../components/FoilCardImage';
 
@@ -63,6 +65,168 @@ const getSetCardKey = (card) => {
   const number = String(card.card_num || '').trim();
   if (number) return number;
   return card.unique_id || card.name;
+};
+
+const escapeXml = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;');
+
+const excelCell = (value, type = 'String') => {
+  if (value === undefined || value === null || value === '') {
+    return '<Cell><Data ss:Type="String"></Data></Cell>';
+  }
+  if (type === 'Number') {
+    return `<Cell><Data ss:Type="Number">${Number(value) || 0}</Data></Cell>`;
+  }
+  if (type === 'Boolean') {
+    return `<Cell><Data ss:Type="Boolean">${value ? 1 : 0}</Data></Cell>`;
+  }
+  if (type === 'DateTime') {
+    return `<Cell ss:StyleID="Date"><Data ss:Type="DateTime">${value}</Data></Cell>`;
+  }
+  return `<Cell><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
+};
+
+const excelRow = (cells) => `<Row>${cells.map((cell) => excelCell(cell.value, cell.type)).join('')}</Row>`;
+
+const excelWorksheet = (name, headers, rows) => `
+  <Worksheet ss:Name="${escapeXml(name)}">
+    <Table>
+      ${excelRow(headers.map((header) => ({ value: header })))}
+      ${rows.map((row) => excelRow(row)).join('')}
+    </Table>
+  </Worksheet>`;
+
+const downloadCollectionBackup = ({ collection, decks, setProgress }) => {
+  const createdAt = new Date();
+  const createdAtIso = createdAt.toISOString();
+  const profile = Auth.getProfile?.();
+  const username = profile?.data?.username || profile?.username || 'account';
+  const standardCards = collection.reduce((total, card) => total + (card.standard_count || 0), 0);
+  const foilCards = collection.reduce((total, card) => total + (card.foil_count || 0), 0);
+  const totalCards = standardCards + foilCards;
+
+  const collectionRows = collection.map((card) => {
+    const standard = card.standard_count || 0;
+    const foil = card.foil_count || 0;
+    return [
+      { value: card.set_name },
+      { value: card.set_id },
+      { value: card.set_num, type: 'Number' },
+      { value: card.card_num },
+      { value: card.name },
+      { value: card.rarity },
+      { value: card.color },
+      { value: card.cost, type: 'Number' },
+      { value: card.type },
+      { value: card.inkable, type: 'Boolean' },
+      { value: standard, type: 'Number' },
+      { value: foil, type: 'Number' },
+      { value: standard + foil, type: 'Number' },
+      { value: card.unique_id },
+      { value: card.image },
+    ];
+  });
+
+  const setRows = setProgress.map((set) => [
+    { value: set.name },
+    { value: set.owned, type: 'Number' },
+    { value: set.total, type: 'Number' },
+    { value: set.percent, type: 'Number' },
+    { value: set.remaining, type: 'Number' },
+    { value: set.copies, type: 'Number' },
+  ]);
+
+  const deckRows = decks.flatMap((deck) => (deck.cards || []).map((card) => [
+    { value: deck.deckName },
+    { value: deck._id },
+    { value: card.name },
+    { value: card.set_name },
+    { value: card.set_id },
+    { value: card.set_num, type: 'Number' },
+    { value: card.card_num },
+    { value: card.rarity },
+    { value: card.color },
+    { value: card.cost, type: 'Number' },
+    { value: card.inkable, type: 'Boolean' },
+    { value: card.count || 0, type: 'Number' },
+    { value: card.unique_id },
+    { value: card.image },
+  ]));
+
+  const workbook = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Styles>
+    <Style ss:ID="Date"><NumberFormat ss:Format="Short Date"/></Style>
+  </Styles>
+  ${excelWorksheet('Summary', ['Field', 'Value'], [
+    [{ value: 'Backup created' }, { value: createdAtIso, type: 'DateTime' }],
+    [{ value: 'Username' }, { value: username }],
+    [{ value: 'Unique owned cards' }, { value: collection.length, type: 'Number' }],
+    [{ value: 'Total copies' }, { value: totalCards, type: 'Number' }],
+    [{ value: 'Standard copies' }, { value: standardCards, type: 'Number' }],
+    [{ value: 'Foil copies' }, { value: foilCards, type: 'Number' }],
+    [{ value: 'Saved decks' }, { value: decks.length, type: 'Number' }],
+    [{ value: 'Restore note' }, { value: 'Use Collection Backup columns set_name, card_num, unique_id, standard_count, and foil_count for imports.' }],
+  ])}
+  ${excelWorksheet('Collection Backup', [
+    'set_name',
+    'set_id',
+    'set_num',
+    'card_num',
+    'name',
+    'rarity',
+    'color',
+    'cost',
+    'type',
+    'inkable',
+    'standard_count',
+    'foil_count',
+    'total_count',
+    'unique_id',
+    'image',
+  ], collectionRows)}
+  ${excelWorksheet('Set Summary', [
+    'set_name',
+    'unique_owned_cards',
+    'set_total_cards',
+    'percent_complete',
+    'cards_remaining',
+    'total_copies',
+  ], setRows)}
+  ${excelWorksheet('Decks Backup', [
+    'deck_name',
+    'deck_id',
+    'card_name',
+    'set_name',
+    'set_id',
+    'set_num',
+    'card_num',
+    'rarity',
+    'color',
+    'cost',
+    'inkable',
+    'quantity_in_deck',
+    'unique_id',
+    'image',
+  ], deckRows)}
+</Workbook>`;
+
+  const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `inkcaster-${username}-backup-${createdAtIso.slice(0, 10)}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
 };
 
 const toCardInput = (card) => ({
@@ -167,9 +331,13 @@ const Collection = () => {
   const { data, loading, error, refetch } = useQuery(QUERY_MY_COLLECTION, {
     skip: !Auth.loggedIn(),
   });
+  const { data: deckData } = useQuery(QUERY_MY_DECKS, {
+    skip: !Auth.loggedIn(),
+  });
   const [updateCollectionCard] = useMutation(UPDATE_COLLECTION_CARD);
 
   const collection = useMemo(() => data?.myCollection || [], [data]);
+  const decks = useMemo(() => deckData?.myDecks || [], [deckData]);
   const filteredCollection = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return collection;
@@ -327,7 +495,18 @@ const Collection = () => {
             {collection.length} unique cards · {totalCards} copies · {standardCards} standard · {foilCards} foil
           </Typography>
         </Box>
-        <Inventory2RoundedIcon sx={{ color: 'secondary.main', fontSize: 42 }} />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<DownloadRoundedIcon />}
+            disabled={loading || collection.length === 0}
+            onClick={() => downloadCollectionBackup({ collection, decks, setProgress })}
+          >
+            Download Backup
+          </Button>
+          <Inventory2RoundedIcon sx={{ color: 'secondary.main', fontSize: 42 }} />
+        </Stack>
       </Stack>
 
       <Paper
