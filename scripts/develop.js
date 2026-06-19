@@ -37,7 +37,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const processes = [
-  spawn(npmCommand, ['run', 'watch'], {
+  spawn(npmCommand, ['run', 'start'], {
     cwd: path.join(projectRoot, 'server'),
     stdio: 'inherit',
   }),

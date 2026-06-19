@@ -12,7 +12,7 @@ const collectionCardSchema = new Schema({
   type: String,
   rarity: String,
   unique_id: { type: String, required: true },
-  card_num: Number,
+  card_num: String,
   set_id: String,
   count: { type: Number, required: true, min: 0, default: 0 },
   standard_count: { type: Number, min: 0, default: 0 },

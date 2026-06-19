@@ -7,10 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ios:add": "npm run build && npx cap add ios",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios"
   },
   "dependencies": {
     "@apollo/client": "^3.7.14",
+    "@capacitor/core": "^6.1.2",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@fontsource/cinzel": "^5.2.8",
@@ -25,6 +29,8 @@
     "react-router-dom": "^6.11.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react": "^4.2.1",

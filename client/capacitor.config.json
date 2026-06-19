@@ -1,0 +1,8 @@
+{
+  "appId": "com.inkcaster.app",
+  "appName": "The Inkcaster",
+  "webDir": "dist",
+  "server": {
+    "iosScheme": "theinkcaster"
+  }
+}
