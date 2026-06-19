@@ -28,7 +28,6 @@ import {
 } from '@mui/material';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
-import MonetizationOnRoundedIcon from '@mui/icons-material/MonetizationOnRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
@@ -78,27 +77,6 @@ const formatRarity = (rarity = '') => rarity
   .join(' ');
 
 const normalizeQuantity = (value) => Math.max(0, Number.parseInt(value, 10) || 0);
-const formatCurrency = (value) => new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-}).format(value);
-
-const getDisplayPrice = (price) => price?.marketPrice ?? price?.lowestPrice ?? null;
-
-const loadCardPrice = async (card, printing, signal) => {
-  const searchParams = new URLSearchParams({
-    name: card.Name || '',
-    set: card.Set_Name || '',
-    number: String(card.Card_Num || ''),
-    rarity: card.Rarity || '',
-    tcgplayerId: String(card.TCGplayer_ID || ''),
-    printing,
-  });
-  const response = await fetch(`/api/card-price?${searchParams}`, { signal });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Price unavailable.');
-  return data;
-};
 
 const normalizeLorcastCard = (card) => ({
   Artist: card.illustrators?.join(', ') || '',
@@ -178,9 +156,6 @@ const MainCards = () => {
   const [foilAddQuantity, setFoilAddQuantity] = useState(0);
   const [addingToCollection, setAddingToCollection] = useState(false);
   const [foilPreviewId, setFoilPreviewId] = useState('');
-  const [cardPrices, setCardPrices] = useState({ standard: null, foil: null });
-  const [loadingPrices, setLoadingPrices] = useState(false);
-  const [priceError, setPriceError] = useState('');
   const [collectionNotice, setCollectionNotice] = useState(null);
   const [updateCollectionCard] = useMutation(UPDATE_COLLECTION_CARD);
   const { data: collectionData, refetch: refetchCollection } = useQuery(QUERY_MY_COLLECTION, {
@@ -204,42 +179,6 @@ const MainCards = () => {
       setFoilAddQuantity(ownedCard?.foil_count || 0);
     }
   }, [collectionById, selectedCard]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    if (!selectedCard) {
-      setCardPrices({ standard: null, foil: null });
-      setPriceError('');
-      setLoadingPrices(false);
-      return () => controller.abort();
-    }
-
-    const loadPrices = async () => {
-      setLoadingPrices(true);
-      setPriceError('');
-      setCardPrices({ standard: null, foil: null });
-
-      const results = await Promise.allSettled([
-        loadCardPrice(selectedCard, 'standard', controller.signal),
-        loadCardPrice(selectedCard, 'foil', controller.signal),
-      ]);
-
-      if (controller.signal.aborted) return;
-
-      setCardPrices({
-        standard: results[0].status === 'fulfilled' ? results[0].value : null,
-        foil: results[1].status === 'fulfilled' ? results[1].value : null,
-      });
-      if (results.every((result) => result.status === 'rejected')) {
-        setPriceError(results[0].reason?.message || 'Unable to load pricing.');
-      }
-      setLoadingPrices(false);
-    };
-
-    loadPrices();
-    return () => controller.abort();
-  }, [selectedCard]);
 
   const saveCollectionQuantity = async (printing, rawQuantity) => {
     if (!selectedCard) return;
@@ -956,48 +895,6 @@ const MainCards = () => {
                 <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                   {selectedCard.Body_Text || selectedCard.Flavor_Text || 'No additional card text.'}
                 </Typography>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    mt: 2,
-                    p: 1.25,
-                    bgcolor: 'rgba(216, 165, 43, 0.08)',
-                    border: '1px solid',
-                    borderColor: 'rgba(216, 165, 43, 0.28)',
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
-                    <MonetizationOnRoundedIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
-                    <Typography fontWeight={900} color="secondary.light">TCGplayer Value</Typography>
-                  </Stack>
-                  {loadingPrices && (
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <CircularProgress size={16} color="secondary" />
-                      <Typography variant="body2" color="text.secondary">Loading prices...</Typography>
-                    </Stack>
-                  )}
-                  {!loadingPrices && priceError && (
-                    <Typography variant="body2" color="text.secondary">{priceError}</Typography>
-                  )}
-                  {!loadingPrices && !priceError && (
-                    <Stack spacing={0.5}>
-                      {[
-                        ['Standard', cardPrices.standard],
-                        ['Foil', cardPrices.foil],
-                      ].map(([label, price]) => {
-                        const value = getDisplayPrice(price);
-                        return (
-                          <Stack key={label} direction="row" justifyContent="space-between" spacing={1}>
-                            <Typography variant="body2" color="text.secondary">{label}</Typography>
-                            <Typography variant="body2" fontWeight={900}>
-                              {value === null ? 'Unavailable' : formatCurrency(value)}
-                            </Typography>
-                          </Stack>
-                        );
-                      })}
-                    </Stack>
-                  )}
-                </Paper>
                 {Auth.loggedIn() && (
                   <Stack spacing={1} sx={{ mt: 2 }}>
                     <Box
